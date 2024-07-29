@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://ccpj5n3gox2r"]
+
+[ext_resource type="PackedScene" uid="uid://ll4keouw4gax" path="res://scenes/radiance_cascades_2d.tscn" id="1_leaa6"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="radiance cascade 2d" parent="." instance=ExtResource("1_leaa6")]
+position = Vector2(2.08165e-12, 2.08165e-12)
+
+[node name="Camera2D" type="Camera2D" parent="."]
