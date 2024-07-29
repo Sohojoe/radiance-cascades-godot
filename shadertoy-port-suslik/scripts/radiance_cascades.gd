@@ -62,16 +62,16 @@ func _process(delta):
 		return
 	iTime += delta
 	simulate(delta)
-	var str = " Brush type: "
+	var debug_str = " Brush type: "
 	if brush_type == 0:
-		str += "COLOR"
+		debug_str += "COLOR"
 	elif brush_type == 1:
-		str += "WALL"
+		debug_str += "WALL"
 	else:
 		str(brush_type)
-	str +=  "\n MERGE_FIX: " + str(merge_fix)
+	debug_str +=  "\n MERGE_FIX: " + str(merge_fix)
 	#ui_output.text = "Frame: " + str(iFrame) + "\nTime: " + str(iTime)
-	ui_output.text = str
+	ui_output.text = debug_str
 
 func setup():
 	numX = int(size.x)
