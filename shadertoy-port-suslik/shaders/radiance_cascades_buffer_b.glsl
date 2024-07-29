@@ -177,13 +177,14 @@ float sdBezier(vec2 p, vec2 a, vec2 b, vec2 c) {
 
 
 void main() {
-    ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 fragCoord = gl_GlobalInvocationID.xy;
+    ivec2 ifragCoord = ivec2(fragCoord.xy);
     vec4 fragColor = vec4(0.0);
     float MAX_FLOAT = uintBitsToFloat(0x7f7fffff);
 
     if (pc.clear_screen == 1) {
         fragColor = vec4(MAX_FLOAT, vec3(0.0));
-        imageStore(emissivity_image, fragCoord, fragColor);
+        imageStore(emissivity_image, ifragCoord, fragColor);
         return;
     }    
 
@@ -196,7 +197,7 @@ void main() {
 
     // vec4 data = texelFetch(iChannel1, ivec2(fragCoord), 0);
     // vec4 data = texelFetch(iChannel1, fragCoord, 0);
-    vec4 data = imageLoad(emissivity_image, fragCoord);
+    vec4 data = imageLoad(emissivity_image, ifragCoord);
     
     float sd = iFrame != 0 ? data.r : MAX_FLOAT;
     vec3 emissivity = iFrame != 0 ? data.gba : vec3(0.0);
@@ -256,6 +257,6 @@ void main() {
 
 
     // Output the final color to the storage image
-    imageStore(emissivity_image, fragCoord, fragColor);
+    imageStore(emissivity_image, ifragCoord, fragColor);
 
 }

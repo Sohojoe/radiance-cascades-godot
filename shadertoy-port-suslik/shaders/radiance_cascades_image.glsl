@@ -376,7 +376,8 @@ float sdDrawing(image2D drawingTex, vec2 P) {
 
 void main() {
     // fragCoord is the pixel coordinate, this is same for shadertoy and for compute shaders
-    ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 fragCoord = gl_GlobalInvocationID.xy;
+    ivec2 ifragCoord = ivec2(fragCoord.xy);
     vec4 fragColor = vec4(0.0);
     ivec2 _cascade_size = ivec2(pc.cascade_size_x, pc.cascade_size_y); // validated this to return the correct size 1024x1024
 
@@ -497,5 +498,5 @@ void main() {
     // }
     // fragColor = vec4(fragCoord.x/ float(face_size.x), fragCoord.y/float(face_size.y),1.,1);
     // fragColor = vec4(screen_pos.x, screen_pos.y,  1.,1);
-    imageStore(output_image, fragCoord, fragColor);
+    imageStore(output_image, ifragCoord, fragColor);
 }

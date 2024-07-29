@@ -856,7 +856,8 @@ vec4 CastMergedIntervalInnerParallaxFix(ivec2 probe_index, vec2 dir, vec2 interv
 void main() {
     // debug_main();
     // return;
-    ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 fragCoord = gl_GlobalInvocationID.xy;
+    ivec2 ifragCoord = ivec2(fragCoord.xy);
     vec4 fragColor = vec4(1.0, 1.0, 0.0, 1.0);
     // float MAX_FLOAT = uintBitsToFloat(0x7f7fffff);
     // vec3 fragRO, vec3 fragRD;
@@ -918,11 +919,11 @@ void main() {
     //fragColor = vec4(0.2,0.5,1.,1);
     // imageStore(cascades_image_0, fragCoord, fragColor);
     switch (face) {
-        case 0: imageStore(cascades_image_0, fragCoord, fragColor); break;
-        case 1: imageStore(cascades_image_1, fragCoord, fragColor); break;
-        case 2: imageStore(cascades_image_2, fragCoord, fragColor); break;
-        case 3: imageStore(cascades_image_3, fragCoord, fragColor); break;
-        case 4: imageStore(cascades_image_4, fragCoord, fragColor); break;
-        case 5: imageStore(cascades_image_5, fragCoord, fragColor); break;
+        case 0: imageStore(cascades_image_0, ifragCoord, fragColor); break;
+        case 1: imageStore(cascades_image_1, ifragCoord, fragColor); break;
+        case 2: imageStore(cascades_image_2, ifragCoord, fragColor); break;
+        case 3: imageStore(cascades_image_3, ifragCoord, fragColor); break;
+        case 4: imageStore(cascades_image_4, ifragCoord, fragColor); break;
+        case 5: imageStore(cascades_image_5, ifragCoord, fragColor); break;
     }    
 }
