@@ -7,7 +7,7 @@ extends TextureRect
 # @export_range(0, 5, .1) var merge_fix: int = 4
 
 
-var color = Vector3(1.,1.,0)
+var color = Vector4(1.,1.,0,1)
 var from = Vector2(100,100)
 var to = Vector2(300,200)
 @export_range(1, 15) var radius:float = 5.
@@ -48,6 +48,16 @@ func _process(delta):
 	if not is_visible_in_tree():
 		return
 	simulate(delta)
+	if Input.is_key_pressed(KEY_1):
+		set_pen(3)
+	elif Input.is_key_pressed(KEY_2):
+		set_pen(2)
+	elif Input.is_key_pressed(KEY_3):
+		set_pen(1)
+	elif Input.is_key_pressed(KEY_4):
+		set_pen(0)
+	elif Input.is_key_pressed(KEY_5):
+		set_pen(4)
 
 func setup():
 	var image = Image.create(size.x, size.y, false, Image.FORMAT_RGBAF)
@@ -125,7 +135,7 @@ func send_image():
 
 func set_pen(index:int):
 	var c = Color(pens[index])
-	color = Vector3(c.r, c.g, c.b)
+	color = Vector4(c.r, c.g, c.b, c.a)
 
 
 func draw():
@@ -133,12 +143,13 @@ func draw():
 	from = to
 	to = mouse_position
 	drawing = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var clear_screen = Input.is_key_pressed(KEY_DELETE) || Input.is_key_pressed(KEY_BACKSPACE) || frame == 0    
 
 	var radiusSquared:float = radius * radius;
-	var pc_bytes := PackedFloat32Array([radiusSquared]).to_byte_array()
-	pc_bytes.append_array(PackedInt32Array([drawing,]).to_byte_array())
+	var pc_bytes := PackedVector4Array([color]).to_byte_array()
 	pc_bytes.append_array(PackedVector2Array([from, to, size]).to_byte_array())
-	pc_bytes.append_array(PackedVector3Array([color]).to_byte_array())
+	pc_bytes.append_array(PackedFloat32Array([radiusSquared]).to_byte_array())
+	pc_bytes.append_array(PackedInt32Array([drawing, clear_screen]).to_byte_array())
 	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 
 	var shader_name = "draw"
