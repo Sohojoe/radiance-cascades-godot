@@ -7,11 +7,13 @@ extends TextureRect
 # @export_range(0, 5, .1) var merge_fix: int = 4
 
 
-@export var color = Vector3(1.,1.,0)
-@export var from = Vector2(100,100)
-@export var to = Vector2(300,200)
-@export_range(1, 15) var radius:float = 1.
-@export  var drawing: bool = true
+var color = Vector3(1.,1.,0)
+var from = Vector2(100,100)
+var to = Vector2(300,200)
+@export_range(1, 15) var radius:float = 5.
+var drawing: bool = true
+
+var pens = ["#7c3f58", "#eb6b6f", "#f9a875", "#fff6d3", "#000000"]
 
 #@onready var ui_output: Label = $CanvasLayer/MarginContainer/HBoxContainer/Panel/VBoxContainer/output
 
@@ -32,10 +34,14 @@ var output_texture
 var output_tex_uniform
 var input_tex_uniform
 
+var frame:int = 0
+
 @export var texture_rect: TextureRect
 
 
 func _ready():
+	frame = 0
+	set_pen(3)
 	setup()
 
 func _process(delta):
@@ -93,7 +99,9 @@ func simulate(delta:float):
 	# GPU -> CPU
 	rd.submit()
 	rd.sync()
-	send_image()    
+	send_image()
+	
+	frame += 1 
 
 #--- helper functions
 func get_uniform(buffer, binding: int):
@@ -115,8 +123,17 @@ func send_image():
 	var image_data := Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBAF, byte_data)
 	texture.update(image_data)
 
+func set_pen(index:int):
+	var c = Color(pens[index])
+	color = Vector3(c.r, c.g, c.b)
+
 
 func draw():
+	var mouse_position = get_local_mouse_position()
+	from = to
+	to = mouse_position
+	drawing = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+
 	var radiusSquared:float = radius * radius;
 	var pc_bytes := PackedFloat32Array([radiusSquared]).to_byte_array()
 	pc_bytes.append_array(PackedInt32Array([drawing,]).to_byte_array())
