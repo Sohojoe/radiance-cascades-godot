@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://dlqdojgofahfj"
+path="res://.godot/imported/view_signed_distance.glsl-781b7b31735507721d6916d3c8eadc6d.res"
+
+[deps]
+
+source_file="res://shaders/view_signed_distance.glsl"
+dest_files=["res://.godot/imported/view_signed_distance.glsl-781b7b31735507721d6916d3c8eadc6d.res"]
+
+[params]
+
