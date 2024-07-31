@@ -6,13 +6,15 @@ extends TextureRect
 # @export var clear_screen: int = 0
 # @export_range(0, 5, .1) var merge_fix: int = 4
 
-@export_range(0, 64, .1) var ray_count: int = 8
-@export_range(0, 1468, .1) var max_steps:int = 256
+@export_range(0, 48, .1) var jfa_ray_count: int = 32
+@export_range(0, 32, .1) var jfa_raymarch_max_steps:int = 32
+@export_range(0, 48, .1) var ray_count: int = 8
+@export_range(0, 1468, .1) var raymarch_max_steps:int = 256
 @export var show_noise: bool = true
 @export var accum_radiance: bool = true
 
 
-@export_range(0, 11, .1) var jfa_passes_count: int = 1
+@export_range(0, 11, .1) var jfa_passes_count: int = 11
 
 var color = Vector4(1.,1.,0,1)
 var from = Vector2(100,100)
@@ -31,6 +33,7 @@ var shader_file_names = {
 	"jump_flood_algorithm": "res://shaders/jump_flood_algorithm.glsl",
 	"seed": "res://shaders/seed.glsl",
 	"distance": "res://shaders/distance.glsl",
+	"jfa_raymarch": "res://shaders/jfa_raymarch.glsl",
 }
 
 var rd: RenderingDevice
@@ -41,12 +44,15 @@ var consts_buffer
 
 var draw_texture
 var output_texture
+var distance_texture
 var draw_input_tex_uniform
 var draw_output_tex_uniform
 var raymarch_input_tex_uniform
 var raymarch_output_tex_uniform
 var jfa_input_tex_uniform
 var jfa_output_tex_uniform
+var distance_output_tex_uniform
+var distance_input_tex_uniform
 
 
 var frame:int = 0
@@ -95,6 +101,7 @@ func setup():
 	var view3 = RDTextureView.new()
 	draw_texture = rd.texture_create(fmt3, view3)
 	output_texture = rd.texture_create(fmt3, view3)
+	distance_texture = rd.texture_create(fmt3, view3)
 
 	draw_input_tex_uniform = RDUniform.new()
 	draw_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
@@ -122,6 +129,16 @@ func setup():
 	jfa_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	jfa_output_tex_uniform.binding = 1
 	jfa_output_tex_uniform.add_id(output_texture)
+	
+	distance_output_tex_uniform = RDUniform.new()
+	distance_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	distance_output_tex_uniform.binding = 1
+	distance_output_tex_uniform.add_id(distance_texture)
+	
+	distance_input_tex_uniform = RDUniform.new()
+	distance_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	distance_input_tex_uniform.binding = 3
+	distance_input_tex_uniform.add_id(distance_texture)
 
 	for key in shader_file_names.keys():
 		var file_name = shader_file_names[key]
@@ -144,6 +161,7 @@ func simulate(delta:float):
 	create_seed()
 	jump_flood_algorithm()
 	create_distance()
+	jfa_raymarch()
 
 	# GPU -> CPU
 	rd.submit()
@@ -206,7 +224,7 @@ func draw():
 
 func raymarch():
 	var pc_bytes := PackedVector2Array([size]).to_byte_array()
-	pc_bytes.append_array(PackedInt32Array([ray_count, max_steps, show_noise, accum_radiance]).to_byte_array())
+	pc_bytes.append_array(PackedInt32Array([ray_count, raymarch_max_steps, show_noise, accum_radiance]).to_byte_array())
 	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 
 	var shader_name = "raymarch"
@@ -270,11 +288,28 @@ func create_distance():
 	var shader_name = "distance"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, jfa_output_tex_uniform, jfa_input_tex_uniform,
+		consts_buffer_uniform, distance_output_tex_uniform, jfa_input_tex_uniform,
 		], 
 		shaders[shader_name], 
 		0)
 
 	var compute_list = rd.compute_list_begin()
 	dispatch(compute_list, shader_name, uniform_set)
+	rd.compute_list_end()
+
+func jfa_raymarch():
+	var pc_bytes := PackedVector2Array([size]).to_byte_array()
+	pc_bytes.append_array(PackedInt32Array([jfa_ray_count, jfa_raymarch_max_steps, show_noise, accum_radiance]).to_byte_array())
+	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
+
+	var shader_name = "jfa_raymarch"
+	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
+	var uniform_set = rd.uniform_set_create([
+		consts_buffer_uniform, jfa_output_tex_uniform, raymarch_input_tex_uniform, distance_input_tex_uniform,
+		], 
+		shaders[shader_name], 
+		0)
+
+	var compute_list = rd.compute_list_begin()
+	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 	rd.compute_list_end()
