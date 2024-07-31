@@ -12,6 +12,8 @@ extends TextureRect
 @export var accum_radiance: bool = true
 
 
+@export_range(0, 11, .1) var jfa_passes_count: int = 1
+
 var color = Vector4(1.,1.,0,1)
 var from = Vector2(100,100)
 var to = Vector2(300,200)
@@ -27,6 +29,7 @@ var shader_file_names = {
 	#"pt1": "res://shaders/pt1.glsl",
 	"draw": "res://shaders/draw.glsl",
 	"raymarch": "res://shaders/raymarch.glsl",
+	"jump_flood_algorithm": "res://shaders/jump_flood_algorithm.glsl",
 }
 
 var rd: RenderingDevice
@@ -41,6 +44,9 @@ var draw_input_tex_uniform
 var draw_output_tex_uniform
 var raymarch_input_tex_uniform
 var raymarch_output_tex_uniform
+var jfa_first_input_tex_uniform
+var jfa_repeating_input_tex_uniform
+var jfa_output_tex_uniform
 
 
 var frame:int = 0
@@ -107,6 +113,19 @@ func setup():
 	raymarch_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	raymarch_output_tex_uniform.binding = 1
 	raymarch_output_tex_uniform.add_id(output_texture)
+	
+	jfa_first_input_tex_uniform = RDUniform.new()
+	jfa_first_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	jfa_first_input_tex_uniform.binding = 2
+	jfa_first_input_tex_uniform.add_id(draw_texture)
+	jfa_repeating_input_tex_uniform = RDUniform.new()
+	jfa_repeating_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	jfa_repeating_input_tex_uniform.binding = 2
+	jfa_repeating_input_tex_uniform.add_id(output_texture)
+	jfa_output_tex_uniform = RDUniform.new()
+	jfa_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	jfa_output_tex_uniform.binding = 1
+	jfa_output_tex_uniform.add_id(output_texture)
 
 	for key in shader_file_names.keys():
 		var file_name = shader_file_names[key]
@@ -125,7 +144,8 @@ func simulate(delta:float):
 
 	#--- GPU work
 	draw()
-	raymarch()
+	# raymarch()
+	jump_flood_algorithm()
 
 	# GPU -> CPU
 	rd.submit()
@@ -187,13 +207,6 @@ func draw():
 
 
 func raymarch():
-	var mouse_position = get_local_mouse_position()
-	from = to
-	to = mouse_position
-	drawing = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var clear_screen = Input.is_key_pressed(KEY_DELETE) || Input.is_key_pressed(KEY_BACKSPACE) || frame == 0    
-
-	var radiusSquared:float = radius * radius;
 	var pc_bytes := PackedVector2Array([size]).to_byte_array()
 	pc_bytes.append_array(PackedInt32Array([ray_count, max_steps, show_noise, accum_radiance]).to_byte_array())
 	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
@@ -208,4 +221,44 @@ func raymarch():
 
 	var compute_list = rd.compute_list_begin()
 	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
+	rd.compute_list_end()
+
+func jump_flood_algorithm():
+	var oneOverSize := Vector2.ONE / size
+	var skip:bool = jfa_passes_count == 0
+
+	var shader_name = "jump_flood_algorithm"
+	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
+	var first_uniform_set = rd.uniform_set_create([
+		consts_buffer_uniform, jfa_output_tex_uniform, jfa_first_input_tex_uniform,
+		], 
+		shaders[shader_name], 
+		0)
+	var repeating_uniform_set = rd.uniform_set_create([
+		consts_buffer_uniform, jfa_output_tex_uniform, jfa_repeating_input_tex_uniform,
+		], 
+		shaders[shader_name], 
+		0)
+
+	var compute_list = rd.compute_list_begin()
+
+	var max_dimension = max(size.x, size.y)
+	var max_steps = ceil(log(max_dimension) / log(2))
+
+	var passes = clamp(jfa_passes_count, 1, max_steps)
+	var first_pass = true
+	for i in range(passes-1, -1, -1):
+		var uOffset:float = pow(2, max_steps - i - 1)
+
+		var pc_bytes := PackedVector2Array([oneOverSize]).to_byte_array()
+		pc_bytes.append_array(PackedFloat32Array([uOffset]).to_byte_array())
+		pc_bytes.append_array(PackedInt32Array([skip]).to_byte_array())
+		pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
+
+		if first_pass:
+			dispatch(compute_list, shader_name, first_uniform_set, pc_bytes)
+			first_pass = false
+		else:
+			dispatch(compute_list, shader_name, repeating_uniform_set, pc_bytes)
+
 	rd.compute_list_end()

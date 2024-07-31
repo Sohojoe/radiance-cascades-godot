@@ -15,3 +15,4 @@ offset_bottom = 36.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_kxvhn")
+jfa_passes_count = 5
