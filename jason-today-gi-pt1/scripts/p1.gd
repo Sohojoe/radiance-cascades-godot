@@ -6,6 +6,11 @@ extends TextureRect
 # @export var clear_screen: int = 0
 # @export_range(0, 5, .1) var merge_fix: int = 4
 
+@export_range(0, 64, .1) var ray_count: int = 8
+@export_range(0, 1468, .1) var max_steps:int = 256
+@export var show_noise: bool = true
+@export var accum_radiance: bool = true
+
 
 var color = Vector4(1.,1.,0,1)
 var from = Vector2(100,100)
@@ -21,6 +26,7 @@ var pens = ["#7c3f58", "#eb6b6f", "#f9a875", "#fff6d3", "#000000"]
 var shader_file_names = {
 	#"pt1": "res://shaders/pt1.glsl",
 	"draw": "res://shaders/draw.glsl",
+	"raymarch": "res://shaders/raymarch.glsl",
 }
 
 var rd: RenderingDevice
@@ -29,10 +35,13 @@ var shaders = {}
 
 var consts_buffer
 
-
+var draw_texture
 var output_texture
-var output_tex_uniform
-var input_tex_uniform
+var draw_input_tex_uniform
+var draw_output_tex_uniform
+var raymarch_input_tex_uniform
+var raymarch_output_tex_uniform
+
 
 var frame:int = 0
 
@@ -78,15 +87,26 @@ func setup():
 	fmt3.format = RenderingDevice.DATA_FORMAT_R32G32B32A32_SFLOAT
 	fmt3.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 	var view3 = RDTextureView.new()
+	draw_texture = rd.texture_create(fmt3, view3)
 	output_texture = rd.texture_create(fmt3, view3)
-	output_tex_uniform = RDUniform.new()
-	output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	output_tex_uniform.binding = 1
-	output_tex_uniform.add_id(output_texture)
-	input_tex_uniform = RDUniform.new()
-	input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	input_tex_uniform.binding = 2
-	input_tex_uniform.add_id(output_texture)
+
+	draw_input_tex_uniform = RDUniform.new()
+	draw_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	draw_input_tex_uniform.binding = 2
+	draw_input_tex_uniform.add_id(draw_texture)
+	draw_output_tex_uniform = RDUniform.new()
+	draw_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	draw_output_tex_uniform.binding = 1
+	draw_output_tex_uniform.add_id(draw_texture)
+
+	raymarch_input_tex_uniform = RDUniform.new()
+	raymarch_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	raymarch_input_tex_uniform.binding = 2
+	raymarch_input_tex_uniform.add_id(draw_texture)
+	raymarch_output_tex_uniform = RDUniform.new()
+	raymarch_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	raymarch_output_tex_uniform.binding = 1
+	raymarch_output_tex_uniform.add_id(output_texture)
 
 	for key in shader_file_names.keys():
 		var file_name = shader_file_names[key]
@@ -105,6 +125,7 @@ func simulate(delta:float):
 
 	#--- GPU work
 	draw()
+	raymarch()
 
 	# GPU -> CPU
 	rd.submit()
@@ -155,7 +176,7 @@ func draw():
 	var shader_name = "draw"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, output_tex_uniform, input_tex_uniform,
+		consts_buffer_uniform, draw_output_tex_uniform, draw_input_tex_uniform,
 		], 
 		shaders[shader_name], 
 		0)
@@ -164,19 +185,23 @@ func draw():
 	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 	rd.compute_list_end()
 
-func  pt1():
-	var pc_bytes := PackedInt32Array([
-			0,
-		]).to_byte_array()	
-	# pc_bytes.append_array(PackedVector2iArray([cascade_size]).to_byte_array())
-	# pc_bytes.append_array(PackedInt32Array([iFrame,]).to_byte_array())
-	# pc_bytes.append_array(PackedFloat32Array([iTime,]).to_byte_array())
+
+func raymarch():
+	var mouse_position = get_local_mouse_position()
+	from = to
+	to = mouse_position
+	drawing = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var clear_screen = Input.is_key_pressed(KEY_DELETE) || Input.is_key_pressed(KEY_BACKSPACE) || frame == 0    
+
+	var radiusSquared:float = radius * radius;
+	var pc_bytes := PackedVector2Array([size]).to_byte_array()
+	pc_bytes.append_array(PackedInt32Array([ray_count, max_steps, show_noise, accum_radiance]).to_byte_array())
 	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 
-	var shader_name = "pt1"
+	var shader_name = "raymarch"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, output_tex_uniform,
+		consts_buffer_uniform, raymarch_output_tex_uniform, raymarch_input_tex_uniform,
 		], 
 		shaders[shader_name], 
 		0)

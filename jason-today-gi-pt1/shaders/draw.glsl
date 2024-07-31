@@ -7,8 +7,8 @@ layout(set=0,binding=0,std430)buffer ConstBuffer{
     uint add_data;
 }consts;
 
-// layout(set=0,binding=1,rgba32f)writeonly uniform image2D output_image;
-layout(set=0,binding=1,rgba32f) uniform image2D output_image;
+layout(set=0,binding=1,rgba32f)writeonly uniform image2D output_image;
+// layout(set=0,binding=1,rgba32f) uniform image2D output_image;
 layout(set=0,binding=2,rgba32f)readonly uniform image2D input_image;
 
 layout(push_constant,std430)uniform Params{
@@ -40,11 +40,12 @@ void main(){
     vUv=fragCoord.xy/pc.resolution;
 
     if (pc.clear_screen != 0) {
-        imageStore(output_image, ifragCoord, vec4(0.0, 0., 0., 1.));
+        // imageStore(output_image, ifragCoord, vec4(0.0, 0., 0., 1.));
+        imageStore(output_image, ifragCoord, vec4(0.0, 0., 0., 0.));
         return;
     }
 
-    vec4 fragColor=imageLoad(output_image, ifragCoord);
+    vec4 fragColor=imageLoad(input_image, ifragCoord);
     
     // If we aren't actively drawing (or on mobile) no-op!
     if(pc.drawing != 0){
