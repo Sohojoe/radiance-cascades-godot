@@ -50,7 +50,7 @@ void main(){
             vec2 sampleSeed=sampleValue.xy;
 
             if(sampleSeed.x!=0.||sampleSeed.y!=0.){
-                vec2 diff = sampleSeed - fragCoord;
+                vec2 diff = sampleSeed - vUv;
                 float dist=dot(diff,diff);
                 if(dist<nearestDist){
                     nearestDist=dist;

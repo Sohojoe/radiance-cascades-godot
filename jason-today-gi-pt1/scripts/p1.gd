@@ -30,6 +30,7 @@ var shader_file_names = {
 	"draw": "res://shaders/draw.glsl",
 	"raymarch": "res://shaders/raymarch.glsl",
 	"jump_flood_algorithm": "res://shaders/jump_flood_algorithm.glsl",
+	"seed": "res://shaders/seed.glsl",
 }
 
 var rd: RenderingDevice
@@ -145,6 +146,7 @@ func simulate(delta:float):
 	#--- GPU work
 	draw()
 	# raymarch()
+	create_seed()
 	jump_flood_algorithm()
 
 	# GPU -> CPU
@@ -223,6 +225,25 @@ func raymarch():
 	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 	rd.compute_list_end()
 
+
+func create_seed():
+	var pc_bytes := PackedVector2Array([size]).to_byte_array()
+	pc_bytes.append_array(PackedInt32Array([ray_count, max_steps, show_noise, accum_radiance]).to_byte_array())
+	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
+
+	var shader_name = "seed"
+	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
+	var uniform_set = rd.uniform_set_create([
+		consts_buffer_uniform, raymarch_output_tex_uniform, raymarch_input_tex_uniform,
+		], 
+		shaders[shader_name], 
+		0)
+
+	var compute_list = rd.compute_list_begin()
+	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
+	rd.compute_list_end()
+
+
 func jump_flood_algorithm():
 	var oneOverSize := Vector2.ONE / size
 	var skip:bool = jfa_passes_count == 0
@@ -255,10 +276,11 @@ func jump_flood_algorithm():
 		pc_bytes.append_array(PackedInt32Array([skip]).to_byte_array())
 		pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 
-		if first_pass:
-			dispatch(compute_list, shader_name, first_uniform_set, pc_bytes)
-			first_pass = false
-		else:
-			dispatch(compute_list, shader_name, repeating_uniform_set, pc_bytes)
+		# if first_pass:
+		# 	dispatch(compute_list, shader_name, first_uniform_set, pc_bytes)
+		# 	first_pass = false
+		# else:
+		# 	dispatch(compute_list, shader_name, repeating_uniform_set, pc_bytes)
+		dispatch(compute_list, shader_name, repeating_uniform_set, pc_bytes)
 
 	rd.compute_list_end()
