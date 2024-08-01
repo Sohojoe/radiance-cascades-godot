@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://v6vcmdwxqxyp"]
+[gd_scene load_steps=3 format=3 uid="uid://v6vcmdwxqxyp"]
 
 [ext_resource type="Script" path="res://scripts/p1.gd" id="1_kxvhn"]
+[ext_resource type="PackedScene" uid="uid://dcmmmh2lbg4dw" path="res://scenes/simple_ui.tscn" id="2_asmfo"]
 
 [node name="pt1" type="TextureRect"]
 anchors_preset = 8
@@ -15,3 +16,19 @@ offset_bottom = 36.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_kxvhn")
+
+[node name="simple_ui" parent="." instance=ExtResource("2_asmfo")]
+title_text = "Controls:
+
+Left Mouse Button = Paint
+
+1 - 4 Color Pen
+5 - Wall/Black Pen
+
+F1 - F3 Debug Displays
+
+
+ESC - Show/Hide this panel
+
+DEL - Reset
+"

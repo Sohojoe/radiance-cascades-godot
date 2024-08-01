@@ -22,9 +22,14 @@ var to = Vector2(300,200)
 @export_range(1, 15) var radius:float = 5.
 var drawing: bool = true
 
-var pens = ["#7c3f58", "#eb6b6f", "#f9a875", "#fff6d3", "#000000"]
+var pens = [
+	"#fff6d3", 
+	"#f9a875", 
+	"#eb6b6f", 
+	"#7c3f58", 
+	"#000000"]
 
-#@onready var ui_output: Label = $CanvasLayer/MarginContainer/HBoxContainer/Panel/VBoxContainer/output
+@onready var simple_ui: CanvasLayer = $simple_ui
 
 
 var shader_file_names = {
@@ -59,13 +64,15 @@ var distance_input_tex_uniform
 
 
 var frame:int = 0
+var cur_pen_index:int = 0
+var display_mode:String 
 
 @export var texture_rect: TextureRect
 
 
 func _ready():
 	frame = 0
-	set_pen(3)
+	set_pen(0)
 	setup()
 
 func _process(delta):
@@ -73,15 +80,27 @@ func _process(delta):
 		return
 	simulate(delta)
 	if Input.is_key_pressed(KEY_1):
-		set_pen(3)
-	elif Input.is_key_pressed(KEY_2):
-		set_pen(2)
-	elif Input.is_key_pressed(KEY_3):
-		set_pen(1)
-	elif Input.is_key_pressed(KEY_4):
 		set_pen(0)
+	elif Input.is_key_pressed(KEY_2):
+		set_pen(1)
+	elif Input.is_key_pressed(KEY_3):
+		set_pen(2)
+	elif Input.is_key_pressed(KEY_4):
+		set_pen(3)
 	elif Input.is_key_pressed(KEY_5):
 		set_pen(4)
+	if Input.is_key_pressed(KEY_F1):
+		display_mode="draw"
+	elif Input.is_key_pressed(KEY_F2):
+		display_mode="jfa"
+	elif Input.is_key_pressed(KEY_F3):
+		display_mode="distance"
+	else:
+		display_mode="default"
+		
+	var debug_str = " Pen: " + str(cur_pen_index + 1)
+	debug_str +=  "\n Display Mode: " + display_mode
+	simple_ui.set_debug_output_text(debug_str)
 
 func setup():
 	var image = Image.create(size.x, size.y, false, Image.FORMAT_RGBAF)
@@ -171,9 +190,14 @@ func simulate(delta:float):
 	# GPU -> CPU
 	rd.submit()
 	rd.sync()
-	send_image(output_texture)
-	#send_image(jfa_texture)
-	#send_image(distance_texture)
+	if display_mode=="jfa":
+		send_image(jfa_texture)
+	elif display_mode=="distance":
+		send_image(distance_texture)
+	elif display_mode=="draw":
+		send_image(draw_texture)
+	else:
+		send_image(output_texture)
 	
 	frame += 1 
 
@@ -200,6 +224,7 @@ func send_image(img_to_show):
 func set_pen(index:int):
 	var c = Color(pens[index])
 	color = Vector4(c.r, c.g, c.b, c.a)
+	cur_pen_index = index
 
 func swap_jfa_image():
 	var tmp = jfa_texture

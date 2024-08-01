@@ -20,4 +20,4 @@ config/icon="res://icon.svg"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="viewport"
-window/vsync/vsync_mode=2
+window/vsync/vsync_mode=0
