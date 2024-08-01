@@ -44,7 +44,10 @@ var consts_buffer
 
 var draw_texture
 var output_texture
+var jfa_texture
+var jfa_texture_prev
 var distance_texture
+
 var draw_input_tex_uniform
 var draw_output_tex_uniform
 var raymarch_input_tex_uniform
@@ -101,6 +104,8 @@ func setup():
 	var view3 = RDTextureView.new()
 	draw_texture = rd.texture_create(fmt3, view3)
 	output_texture = rd.texture_create(fmt3, view3)
+	jfa_texture = rd.texture_create(fmt3, view3)
+	jfa_texture_prev = rd.texture_create(fmt3, view3)
 	distance_texture = rd.texture_create(fmt3, view3)
 
 	draw_input_tex_uniform = RDUniform.new()
@@ -166,7 +171,9 @@ func simulate(delta:float):
 	# GPU -> CPU
 	rd.submit()
 	rd.sync()
-	send_image()
+	send_image(output_texture)
+	#send_image(jfa_texture)
+	#send_image(distance_texture)
 	
 	frame += 1 
 
@@ -185,14 +192,24 @@ func dispatch(compute_list, shader_name, uniform_set, pc_bytes=null):
 				rd.compute_list_set_push_constant(compute_list, pc_bytes, pc_bytes.size())
 	rd.compute_list_dispatch(compute_list, int(ceil(size.x / 16.0)), int(ceil(size.y / 16.0)), 1)
 
-func send_image():
-	var byte_data : PackedByteArray = rd.texture_get_data(output_texture, 0)
+func send_image(img_to_show):
+	var byte_data : PackedByteArray = rd.texture_get_data(img_to_show, 0)
 	var image_data := Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBAF, byte_data)
 	texture.update(image_data)
 
 func set_pen(index:int):
 	var c = Color(pens[index])
 	color = Vector4(c.r, c.g, c.b, c.a)
+
+func swap_jfa_image():
+	var tmp = jfa_texture
+	jfa_texture = jfa_texture_prev
+	jfa_texture_prev = tmp
+	jfa_input_tex_uniform.clear_ids()
+	jfa_output_tex_uniform.clear_ids()
+	jfa_input_tex_uniform.add_id(jfa_texture_prev)
+	jfa_output_tex_uniform.add_id(jfa_texture)
+
 
 
 func draw():
@@ -244,7 +261,7 @@ func create_seed():
 	var shader_name = "seed"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, raymarch_output_tex_uniform, raymarch_input_tex_uniform,
+		consts_buffer_uniform, jfa_output_tex_uniform, raymarch_input_tex_uniform,
 		], 
 		shaders[shader_name], 
 		0)
@@ -260,11 +277,7 @@ func jump_flood_algorithm():
 
 	var shader_name = "jump_flood_algorithm"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
-	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, jfa_output_tex_uniform, jfa_input_tex_uniform,
-		], 
-		shaders[shader_name], 
-		0)
+	var uniform_set
 
 	var compute_list = rd.compute_list_begin()
 
@@ -279,9 +292,16 @@ func jump_flood_algorithm():
 		pc_bytes.append_array(PackedFloat32Array([uOffset]).to_byte_array())
 		pc_bytes.append_array(PackedInt32Array([skip]).to_byte_array())
 		pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
+		
+		swap_jfa_image()
+		uniform_set = rd.uniform_set_create([
+			consts_buffer_uniform, jfa_output_tex_uniform, jfa_input_tex_uniform,
+			], 
+			shaders[shader_name], 
+			0)			
 
 		dispatch(compute_list, shader_name, uniform_set, pc_bytes)
-
+		
 	rd.compute_list_end()
 	
 func create_distance():
@@ -305,7 +325,7 @@ func jfa_raymarch():
 	var shader_name = "jfa_raymarch"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, jfa_output_tex_uniform, raymarch_input_tex_uniform, distance_input_tex_uniform,
+		consts_buffer_uniform, raymarch_output_tex_uniform, raymarch_input_tex_uniform, distance_input_tex_uniform,
 		], 
 		shaders[shader_name], 
 		0)
