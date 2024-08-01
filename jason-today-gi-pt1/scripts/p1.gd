@@ -283,10 +283,9 @@ func jump_flood_algorithm():
 
 	var max_dimension = max(size.x, size.y)
 	var max_steps = ceil(log(max_dimension) / log(2))
-
 	var passes = clamp(jfa_passes_count, 1, max_steps)
 	for i in range(passes-1, -1, -1):
-		var uOffset:float = pow(2, max_steps - i - 1)
+		var uOffset:float = pow(2, i)
 
 		var pc_bytes := PackedVector2Array([oneOverSize]).to_byte_array()
 		pc_bytes.append_array(PackedFloat32Array([uOffset]).to_byte_array())
