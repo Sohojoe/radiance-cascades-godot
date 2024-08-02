@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://c5brwm1mfm3i6"]
+
+[ext_resource type="PackedScene" uid="uid://v6vcmdwxqxyp" path="res://scenes/pt_1.tscn" id="1_mvvei"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="pt1" parent="." instance=ExtResource("1_mvvei")]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 1280.0
+offset_bottom = 720.0
