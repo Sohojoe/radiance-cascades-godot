@@ -20,8 +20,13 @@ void main(){
     // float alpha = texture(surfaceTexture, vUv).a;
     float alpha = imageLoad(input_image, ifragCoord).a;
 
+    // vec2 nearestSeed = imageLoad(input_image, ifragCoord).xy;
+    // float distance = clamp(distance(vUv, nearestSeed), 0.0, 1.0);
+
     vec2 nearestSeed = imageLoad(input_image, ifragCoord).xy;
-    float distance = clamp(distance(vUv, nearestSeed), 0.0, 1.0);
+    nearestSeed *= vec2(input_image_size);
+    float distance = length(nearestSeed - fragCoord);
+    distance = clamp(distance, 0.0, length(input_image_size));
 
     // Normalize and visualize the distance
     vec4 fragColor = vec4(vec3(distance), 1.0);

@@ -448,7 +448,7 @@ RayHit radiance_fix_not_3(vec2 ro, vec2 rd, float tMax) {
         p = imageLoad(input_image, ivec2(ro + rd * t));
     }
 
-    return RayHit(vec4(p.gba, 0.0), t);
+    return RayHit(vec4(p.rgb, 0.0), t);
 }
 // #else
 RayHit radiance_fix_3(vec2 ro, vec2 rd, float tMax) {
@@ -465,7 +465,7 @@ RayHit radiance_fix_3(vec2 ro, vec2 rd, float tMax) {
 
         // p = sampleDrawing(iChannel1, ro + rd * t);
         p = imageLoad(input_image, ivec2(ro + rd * t));
-        return RayHit(vec4(p.gba, 0.0), t);
+        return RayHit(vec4(p.rgb, 0.0), t);
     } else {
         return RayHit(vec4(0.0), 0.0);
     }
