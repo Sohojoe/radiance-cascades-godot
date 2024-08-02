@@ -297,7 +297,7 @@ func dispatch(compute_list, shader_name, uniform_set, pc_bytes=null):
 
 func send_image(img_to_show):
 	var byte_data : PackedByteArray = rd.texture_get_data(img_to_show, 0)
-	var image_data := Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBAF, byte_data)
+	var image_data := Image.create_from_data(int(size.x), int(size.y), false, Image.FORMAT_RGBAF, byte_data)
 	texture.update(image_data)
 
 func set_pen(index:int):
