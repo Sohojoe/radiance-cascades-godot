@@ -52,15 +52,14 @@ var jfa_texture
 var jfa_texture_prev
 var distance_texture
 
-var draw_input_tex_uniform
-var draw_output_tex_uniform
-var raymarch_input_tex_uniform
-var raymarch_output_tex_uniform
-var jfa_input_tex_uniform
-var jfa_output_tex_uniform
-var distance_output_tex_uniform
-var distance_input_tex_uniform
-
+var input_tex_in_uniform
+var input_tex_out_uniform
+var output_tex_out_uniform
+var output_tex_in_uniform
+var distance_tex_out_uniform
+var distance_tex_in_b3_uniform
+var jfa_prev_tex_input_uniform
+var jfa_tex_out_uniform
 
 var frame:int = 0
 var time:float = 0.0
@@ -148,42 +147,41 @@ func setup():
 	jfa_texture_prev = rd.texture_create(fmt3, view3)
 	distance_texture = rd.texture_create(fmt3, view3)
 
-	draw_input_tex_uniform = RDUniform.new()
-	draw_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	draw_input_tex_uniform.binding = 2
-	draw_input_tex_uniform.add_id(input_texture)
-	draw_output_tex_uniform = RDUniform.new()
-	draw_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	draw_output_tex_uniform.binding = 1
-	draw_output_tex_uniform.add_id(input_texture)
+	input_tex_in_uniform = RDUniform.new()
+	input_tex_in_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	input_tex_in_uniform.binding = 2
+	input_tex_in_uniform.add_id(input_texture)
+	input_tex_out_uniform = RDUniform.new()
+	input_tex_out_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	input_tex_out_uniform.binding = 1
+	input_tex_out_uniform.add_id(input_texture)
+	
+	output_tex_in_uniform = RDUniform.new()
+	output_tex_in_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	output_tex_in_uniform.binding = 2
+	output_tex_in_uniform.add_id(output_texture)
+	output_tex_out_uniform = RDUniform.new()
+	output_tex_out_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	output_tex_out_uniform.binding = 1
+	output_tex_out_uniform.add_id(output_texture)
+	
+	distance_tex_out_uniform = RDUniform.new()
+	distance_tex_out_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	distance_tex_out_uniform.binding = 1
+	distance_tex_out_uniform.add_id(distance_texture)	
+	distance_tex_in_b3_uniform = RDUniform.new()
+	distance_tex_in_b3_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	distance_tex_in_b3_uniform.binding = 3
+	distance_tex_in_b3_uniform.add_id(distance_texture)
 
-	raymarch_input_tex_uniform = RDUniform.new()
-	raymarch_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	raymarch_input_tex_uniform.binding = 2
-	raymarch_input_tex_uniform.add_id(input_texture)
-	raymarch_output_tex_uniform = RDUniform.new()
-	raymarch_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	raymarch_output_tex_uniform.binding = 1
-	raymarch_output_tex_uniform.add_id(output_texture)
-	
-	jfa_input_tex_uniform = RDUniform.new()
-	jfa_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	jfa_input_tex_uniform.binding = 2
-	jfa_input_tex_uniform.add_id(output_texture)
-	jfa_output_tex_uniform = RDUniform.new()
-	jfa_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	jfa_output_tex_uniform.binding = 1
-	jfa_output_tex_uniform.add_id(output_texture)
-	
-	distance_output_tex_uniform = RDUniform.new()
-	distance_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	distance_output_tex_uniform.binding = 1
-	distance_output_tex_uniform.add_id(distance_texture)
-	
-	distance_input_tex_uniform = RDUniform.new()
-	distance_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	distance_input_tex_uniform.binding = 3
-	distance_input_tex_uniform.add_id(distance_texture)
+	jfa_prev_tex_input_uniform = RDUniform.new()
+	jfa_prev_tex_input_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	jfa_prev_tex_input_uniform.binding = 2
+	jfa_prev_tex_input_uniform.add_id(jfa_texture_prev)
+	jfa_tex_out_uniform = RDUniform.new()
+	jfa_tex_out_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	jfa_tex_out_uniform.binding = 1
+	jfa_tex_out_uniform.add_id(jfa_texture)
 
 	for key in shader_file_names.keys():
 		var file_name = shader_file_names[key]
@@ -251,10 +249,10 @@ func swap_jfa_image():
 	var tmp = jfa_texture
 	jfa_texture = jfa_texture_prev
 	jfa_texture_prev = tmp
-	jfa_input_tex_uniform.clear_ids()
-	jfa_output_tex_uniform.clear_ids()
-	jfa_input_tex_uniform.add_id(jfa_texture_prev)
-	jfa_output_tex_uniform.add_id(jfa_texture)
+	jfa_prev_tex_input_uniform.clear_ids()
+	jfa_tex_out_uniform.clear_ids()
+	jfa_prev_tex_input_uniform.add_id(jfa_texture_prev)
+	jfa_tex_out_uniform.add_id(jfa_texture)
 
 
 
@@ -275,7 +273,7 @@ func draw():
 	var shader_name = "draw"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, draw_output_tex_uniform, draw_input_tex_uniform,
+		consts_buffer_uniform, input_tex_out_uniform, input_tex_in_uniform,
 		], 
 		shaders[shader_name], 
 		0)
@@ -293,7 +291,7 @@ func raymarch():
 	var shader_name = "raymarch"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, raymarch_output_tex_uniform, raymarch_input_tex_uniform,
+		consts_buffer_uniform, output_tex_out_uniform, input_tex_in_uniform,
 		], 
 		shaders[shader_name], 
 		0)
@@ -307,7 +305,7 @@ func create_seed():
 	var shader_name = "seed"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, jfa_output_tex_uniform, raymarch_input_tex_uniform,
+		consts_buffer_uniform, jfa_tex_out_uniform, input_tex_in_uniform,
 		], 
 		shaders[shader_name], 
 		0)
@@ -340,20 +338,21 @@ func jump_flood_algorithm():
 		
 		swap_jfa_image()
 		uniform_set = rd.uniform_set_create([
-			consts_buffer_uniform, jfa_output_tex_uniform, jfa_input_tex_uniform,
+			consts_buffer_uniform, jfa_tex_out_uniform, jfa_prev_tex_input_uniform,
 			], 
 			shaders[shader_name], 
 			0)			
 
 		dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 		
+	swap_jfa_image()
 	rd.compute_list_end()
 	
 func create_distance():
 	var shader_name = "distance"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, distance_output_tex_uniform, jfa_input_tex_uniform,
+		consts_buffer_uniform, distance_tex_out_uniform, jfa_prev_tex_input_uniform,
 		], 
 		shaders[shader_name], 
 		0)
@@ -380,7 +379,7 @@ func jfa_raymarch():
 	var shader_name = "jfa_raymarch"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, raymarch_output_tex_uniform, raymarch_input_tex_uniform, distance_input_tex_uniform,
+		consts_buffer_uniform, output_tex_out_uniform, input_tex_in_uniform, distance_tex_in_b3_uniform,
 		], 
 		shaders[shader_name], 
 		0)
