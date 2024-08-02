@@ -1,16 +1,15 @@
 extends TextureRect
 
-# @export var num_cascades:int = 6
-# @export var cascade_size:Vector2i = Vector2i(1024, 1024)
-# @export var brush_type:  int = 0
-# @export var clear_screen: int = 0
-# @export_range(0, 5, .1) var merge_fix: int = 4
-
 @export_range(0, 48, .1) var jfa_ray_count: int = 32
 @export_range(0, 32, .1) var jfa_raymarch_max_steps:int = 32
 @export_range(0, 48, .1) var ray_count: int = 8
-@export_range(0, 1468, .1) var raymarch_max_steps:int = 256
+@export_range(0, 6.2) var sun_angle:float = 4.2
 @export var show_noise: bool = true
+@export var show_grain: bool = true
+@export var enable_sun: bool = true
+@export var use_temporal_accum: bool = false
+
+@export_range(0, 1468, .1) var raymarch_max_steps:int = 256
 @export var accum_radiance: bool = true
 
 
@@ -64,6 +63,7 @@ var distance_input_tex_uniform
 
 
 var frame:int = 0
+var time:float = 0.0
 var cur_pen_index:int = 0
 var display_mode:String 
 
@@ -72,6 +72,7 @@ var display_mode:String
 
 func _ready():
 	frame = 0
+	time = 0.0
 	set_pen(0)
 	setup()
 
@@ -79,6 +80,7 @@ func _process(delta):
 	if not is_visible_in_tree():
 		return
 	simulate(delta)
+	time += delta
 	if Input.is_key_pressed(KEY_1):
 		set_pen(0)
 	elif Input.is_key_pressed(KEY_2):
@@ -172,7 +174,7 @@ func setup():
 		shaders[key] = shader
 		pipelines[key] = rd.compute_pipeline_create(shader)
 
-func simulate(delta:float):
+func simulate(_delta:float):
 	#--- CPU work
 	# n/a
 
@@ -181,7 +183,7 @@ func simulate(delta:float):
 
 	#--- GPU work
 	draw()
-	# raymarch()
+	# raymarch() # non jfa version
 	create_seed()
 	jump_flood_algorithm()
 	create_distance()
@@ -343,7 +345,17 @@ func create_distance():
 
 func jfa_raymarch():
 	var pc_bytes := PackedVector2Array([size]).to_byte_array()
-	pc_bytes.append_array(PackedInt32Array([jfa_ray_count, jfa_raymarch_max_steps, show_noise, accum_radiance]).to_byte_array())
+	pc_bytes.append_array(PackedFloat32Array([
+		time, 
+		sun_angle]).to_byte_array())
+	pc_bytes.append_array(PackedInt32Array([
+		jfa_ray_count, 
+		jfa_raymarch_max_steps, 
+		show_noise, 
+		show_grain, 
+		enable_sun, 
+		use_temporal_accum, 
+		]).to_byte_array())
 	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 
 	var shader_name = "jfa_raymarch"
