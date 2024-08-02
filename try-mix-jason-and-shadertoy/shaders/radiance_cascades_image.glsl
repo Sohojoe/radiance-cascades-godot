@@ -384,55 +384,17 @@ void main() {
     vec4 fragColor = vec4(0.0);
     ivec2 _cascade_size = ivec2(pc.cascade_size_x, pc.cascade_size_y); // validated this to return the correct size 1024x1024
 
-    ivec2 viewport_size = imageSize(input_image).xy; // validated this to return the correct size 1280x720
+    ivec2 viewport_size = imageSize(output_image).xy; // validated this to return the correct size 1280x720
     ivec2 face_size = imageSize(cascades_image_0).xy; // validated this to return the correct size 1024x1024
 
     vec2 screen_pos = fragCoord.xy / vec2(viewport_size); // normalized screen position (0-1 for x and y)
     CascadeSize c0_size = GetC0Size(viewport_size);
-        // c0_size.probes_count = (512, 288). 
-        // c0_size.dirs_count = 4;
     int src_cascade_index = 0;
 
-
     CascadeSize cascade_size = GetCascadeSize(src_cascade_index, c0_size);
-        // cascade_size.probes_count = max(ivec2(1), c0_size.probes_count >> (SPATIAL_SCALE_FACTOR * cascade_index));
-        //                                                     (512, 288) >> (1 * 0) = (512, 288)
-        // cascade_size.dirs_count = c0_size.dirs_count * (1 << (BRANCHING_FACTOR * cascade_index));
-        //                                             4 * (1 << (2 * 0)) = 4 * 1 = 4
-        // cascade_size.probes_count = (512, 288)
-        // cascade_size.dirs_count = 4
 
     BilinearSamples bilinear_samples = GetProbeBilinearSamples(screen_pos, src_cascade_index, c0_size);
-        // vec2 probe_screen_size = GetProbeScreenSize(cascade_index, c0_size);
-        //     vec2 c0_probe_screen_size = vec2(1.0f) / vec2(c0_size.probes_count);
-        //                                   (1.,1.) / (512, 288)  = so is this 1/512, 1/288
-        //     return c0_probe_screen_size * float(1 << (SPATIAL_SCALE_FACTOR * cascade_index));
-        //                           (1/512, 1/288?)  * 1 <<    1 * 0 = 1 = (1/512, 1/288)
-        // so c0_probe_screen_size = (1/512, 1/288)
-        // vec2 prev_probe_index2f = screen_pos / probe_screen_size - probe_center;    
-        //                             normalized screen position /  (1/512, 1/288) -  vec2(0.5f)
-        //  so if screen_pos = (0.5, 0.5) then prev_probe_index2f = (0.5, 0.5) / (1/512, 1/288) - (0.5, 0.5)
-        //  so prev_probe_index2f = (0.5 / (1/512) -.5), 0.5 / (1/288) -.5
-        //  so prev_probe_index2f = (255.5, 143.5)
-        // return GetBilinearSamples(prev_probe_index2f);
-        //     BilinearSamples samples;
-        //     samples.base_index = ivec2(floor(pixel_index2f));
-        //          so samples.base_index = (255, 143)
-        //     samples.ratio = fract(pixel_index2f);
-        //          so samples.ratio = (0.5, 0.5)   
-        //     return samples;
-        // so when screen pos is 50% of x,y screen space, the bilinear samples are
-        //    bilinear_samples.base_index = (255, 143)
-        //    bilinear_samples.ratio = (0.5, 0.5)
-
     vec4 weights = GetBilinearWeights(bilinear_samples.ratio);
-        // vec4(
-        //     (1.0f - ratio.x) * (1.0f - ratio.y),
-        //     ratio.x * (1.0f - ratio.y),
-        //     (1.0f - ratio.x) * ratio.y,
-        //     ratio.x * ratio.y);
-        // so when screen pos is 50% of x,y screen space, 
-        //    weights = (0.25, 0.25, 0.25, 0.25)
 
     vec4 fluence = vec4(0.0f);
     for(int dir_index = 0; dir_index < cascade_size.dirs_count; dir_index++) // so looping from 0 to 3
@@ -443,8 +405,6 @@ void main() {
             probe_location.cascade_index = src_cascade_index;
             probe_location.probe_index = clamp(bilinear_samples.base_index + GetBilinearOffset(i), ivec2(0), cascade_size.probes_count- ivec2(1));
             probe_location.dir_index = dir_index;
-            // so probe_location is sampling the 4 sub points; cascade_index always 0, dir_index is 0 to 3
-            // so cascade is zero because we only sample for last cascade where as dir_index is out projection into the cube nonsense
             
             int pixel_index = ProbeLocationToPixelIndex(probe_location, c0_size);
             ivec3 texel_index = PixelIndexToCubemapTexel(face_size, pixel_index);
@@ -454,53 +414,17 @@ void main() {
     }
 
     // Overlay actual SDF drawing to fix low resolution edges
-    //vec4 data = imageLoad(emissivity_image, fragCoord);
+    //vec4 data = imageLoad(input_image, ifragCoord);
     //fluence = mix(fluence, data * 2.0 * PI, clamp(3.0 - data.r, 0.0, 1.0));
     // Tonemap
     //fragColor = vec4(pow(fluence / (fluence + 1.0), vec3(1.0/2.5)), 1.0);
     fragColor = vec4(1.0 - 1.0 / pow(1.0 + fluence.rgb, vec3(2.5)), 1.0);
 
-    // // debug: show emissive layer
-    // vec4 emissivity = imageLoad(emissivity_image, fragCoord);
-    // fragColor = vec4(emissivity);
 
-    // // debug: show cascades
-    // if (fragCoord.x < _cascade_size.x && fragCoord.y < _cascade_size.y) {
-    //     vec4 cascade = imageLoad(cascades_image_0, fragCoord);
-    //     if (cascade == vec4(0.0)) {
-    //         cascade = imageLoad(cascades_image_1, fragCoord);
-    //     } 
-    //     if (cascade == vec4(0.0)) {
-    //         cascade = imageLoad(cascades_image_2, fragCoord);
-    //     } 
-    //     if (cascade == vec4(0.0)) {
-    //         cascade = imageLoad(cascades_image_3, fragCoord);
-    //     } 
-    //     if (cascade == vec4(0.0)) {
-    //         cascade = imageLoad(cascades_image_4, fragCoord);
-    //     } 
-    //     if (cascade == vec4(0.0)) {
-    //         cascade = imageLoad(cascades_image_5, fragCoord);
-    //     }
-    //     if (cascade == vec4(0.0)) {
-    //         cascade = vec4(0.3843, 1.0, 0.0, 1.0);
-    //     }                                            
-    //     fragColor = cascade;
-    //     // fragColor = vec4(0.2,0.5,1.,1);
+    // if (ifragCoord.x < _cascade_size.x && ifragCoord.y < _cascade_size.y) {
+    //     fragColor = imageLoad(cascades_image_1,ifragCoord);
+    //     fragColor.a = 1.0;
     // }
 
-
-    // ivec3 texel_index=ivec3(fragCoord, 0);
-    // fragColor = imageLoad(cascades_image_0, ifragCoord);
-    // fragColor.a = 1.0;
-    // fragColor = vec4(0.2,0.5,1.,1);
-    // if (cascade_size.dirs_count == 4) {
-    // // if (cascade_size == _cascade_size)) {
-    //     fragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    // } else if (cascade_size.probes_count.y > 6) {
-    //     fragColor = vec4(0.0, 1.0, 0.0, 1.0);
-    // }
-    // fragColor = vec4(fragCoord.x/ float(face_size.x), fragCoord.y/float(face_size.y),1.,1);
-    // fragColor = vec4(screen_pos.x, screen_pos.y,  1.,1);fragColor
     imageStore(output_image, ifragCoord, fragColor);
 }
