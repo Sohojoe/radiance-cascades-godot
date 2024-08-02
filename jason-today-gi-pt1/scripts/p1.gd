@@ -345,7 +345,6 @@ func jump_flood_algorithm():
 
 		dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 		
-	swap_jfa_image()
 	rd.compute_list_end()
 	
 func create_distance():

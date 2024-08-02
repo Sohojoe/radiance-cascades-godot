@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://v6vcmdwxqxyp"]
 
 [ext_resource type="Script" path="res://scripts/p1.gd" id="1_kxvhn"]
-[ext_resource type="PackedScene" uid="uid://dcmmmh2lbg4dw" path="res://scenes/simple_ui.tscn" id="2_asmfo"]
+[ext_resource type="PackedScene" uid="uid://dcmmmh2lbg4dw" path="res://components/simple_ui/simple_ui.tscn" id="2_asmfo"]
 
 [node name="pt1" type="TextureRect"]
 anchors_preset = 8
@@ -16,7 +16,6 @@ offset_bottom = 36.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_kxvhn")
-accum_radiance = false
 
 [node name="simple_ui" parent="." instance=ExtResource("2_asmfo")]
 title_text = "Controls:
