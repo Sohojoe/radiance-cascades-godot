@@ -10,6 +10,11 @@ layout(set=0,binding=0,std430)buffer ConstBuffer{
 layout(set=0,binding=1,rgba32f)writeonly uniform image2D output_image;
 layout(set=0,binding=2,rgba32f)readonly uniform image2D input_image;
 
+
+layout(push_constant,std430)uniform Params{
+    float distance_scale_hack;
+}pc;
+
 void main(){
     vec2 fragCoord=gl_GlobalInvocationID.xy;
     ivec2 ifragCoord=ivec2(fragCoord.xy);
@@ -26,8 +31,8 @@ void main(){
     vec2 nearestSeed = imageLoad(input_image, ifragCoord).xy;
     nearestSeed *= vec2(input_image_size);
     float distance = length(nearestSeed - fragCoord);
-    distance *= 0.6; // HACK: scale down the distance
-    distance = clamp(distance, 0.0, length(input_image_size)*1.5);
+    distance *= pc.distance_scale_hack; // HACK: scale down the distance
+    distance = clamp(distance, 0.0, length(input_image_size));
 
     // Normalize and visualize the distance
     vec4 fragColor = vec4(vec3(distance), 1.0);
