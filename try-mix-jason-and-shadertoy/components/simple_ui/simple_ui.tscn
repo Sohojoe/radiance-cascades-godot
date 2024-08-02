@@ -1,0 +1,78 @@
+[gd_scene load_steps=4 format=3 uid="uid://dcmmmh2lbg4dw"]
+
+[ext_resource type="Script" path="res://components/simple_ui/simple_ui.gd" id="1_o8f8f"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hpsfh"]
+bg_color = Color(0, 0, 0, 0.443137)
+border_width_top = 16
+border_width_bottom = 16
+border_color = Color(0.8, 0.8, 0.8, 0)
+
+[sub_resource type="LabelSettings" id="LabelSettings_akkm7"]
+font_size = 24
+shadow_size = 5
+
+[node name="simple_ui" type="CanvasLayer"]
+script = ExtResource("1_o8f8f")
+title_text = "[replace with your text]"
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="h-space" type="Control" parent="MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(828, 2.08165e-12)
+layout_mode = 2
+
+[node name="Panel" type="Panel" parent="MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(419.46, 38.43)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_hpsfh")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer/Panel"]
+self_modulate = Color(0, 0, 0, 0.92549)
+custom_minimum_size = Vector2(2.08165e-12, 2.08165e-12)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="v-space" type="Control" parent="MarginContainer/HBoxContainer/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(2.08165e-12, 41.43)
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MarginContainer/HBoxContainer/Panel/VBoxContainer"]
+layout_mode = 2
+label_settings = SubResource("LabelSettings_akkm7")
+horizontal_alignment = 1
+
+[node name="v-space2" type="Control" parent="MarginContainer/HBoxContainer/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(2.08165e-12, 41.43)
+layout_mode = 2
+
+[node name="output" type="Label" parent="MarginContainer/HBoxContainer/Panel/VBoxContainer"]
+layout_mode = 2
+text = "... status..."
+
+[node name="v-space3" type="Control" parent="MarginContainer/HBoxContainer/Panel/VBoxContainer"]
+custom_minimum_size = Vector2(2.08165e-12, 41.43)
+layout_mode = 2
+
+[node name="fps" type="Label" parent="MarginContainer/HBoxContainer/Panel/VBoxContainer"]
+layout_mode = 2
+text = "... fps..."
+
+[node name="CheckBox" type="CheckBox" parent="MarginContainer/HBoxContainer/Panel/VBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Option 1"
