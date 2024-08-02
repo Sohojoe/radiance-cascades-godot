@@ -26,7 +26,8 @@ void main(){
     vec2 nearestSeed = imageLoad(input_image, ifragCoord).xy;
     nearestSeed *= vec2(input_image_size);
     float distance = length(nearestSeed - fragCoord);
-    distance = clamp(distance, 0.0, length(input_image_size));
+    distance *= 0.6; // HACK: scale down the distance
+    distance = clamp(distance, 0.0, length(input_image_size)*1.5);
 
     // Normalize and visualize the distance
     vec4 fragColor = vec4(vec3(distance), 1.0);
