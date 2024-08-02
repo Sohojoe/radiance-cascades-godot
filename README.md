@@ -18,6 +18,9 @@ basic port of Radiance Cascades shadertoy implementation
     * Pt1 is a prequal for radience cascases showing how to do global illumination. i highly recommend going through Jason's blog 
     * ![radiance-cascades](images/happy-gi.jpg)
 
+1. try-mix-jason-and-shadertoy - using jason-today to create distance map and shadertoy to render
+    * kinda works but performance is not great
+    * ![radiance-cascades](images/happy-try-mix-jason-and-shadertoy.jpg)
 
 ### learn radiance-cascades
 
