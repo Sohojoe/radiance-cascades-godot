@@ -21,7 +21,7 @@ layout(push_constant,std430)uniform Params{
     bool showNoise;
     bool showGrain;
     bool enableSun;
-    bool useTemporalAccum;
+    // bool useTemporalAccum; // did not implemented
 }pc;
 
 vec2 vUv;
@@ -71,7 +71,7 @@ void main() {
     bool showNoise = pc.showNoise;
     bool showGrain = pc.showGrain;
     bool enableSun = pc.enableSun;
-    bool useTemporalAccum = pc.useTemporalAccum;
+    bool useTemporalAccum = false; //pc.useTemporalAccum;
 
 
     vec2 uv = vUv;

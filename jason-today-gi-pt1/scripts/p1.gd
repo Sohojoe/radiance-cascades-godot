@@ -7,7 +7,7 @@ extends TextureRect
 @export var show_noise: bool = true
 @export var show_grain: bool = true
 @export var enable_sun: bool = true
-@export var use_temporal_accum: bool = false
+# @export var use_temporal_accum: bool = false
 
 @export_range(0, 1468, .1) var raymarch_max_steps:int = 256
 @export var accum_radiance: bool = true
@@ -46,7 +46,7 @@ var shaders = {}
 
 var consts_buffer
 
-var draw_texture
+var input_texture
 var output_texture
 var jfa_texture
 var jfa_texture_prev
@@ -91,11 +91,30 @@ func _process(delta):
 		set_pen(3)
 	elif Input.is_key_pressed(KEY_5):
 		set_pen(4)
-	if Input.is_key_pressed(KEY_F1):
+
+
+# @export_range(0, 6.2) var sun_angle:float = 4.2
+# @export var show_noise: bool = true
+# @export var show_grain: bool = true
+# @export var enable_sun: bool = true
+
+	if Input.is_action_just_pressed("toggle_1"):
+		show_noise = !show_noise
+	if Input.is_action_just_pressed("toggle_2"):
+		show_grain = !show_grain
+	if Input.is_action_just_pressed("toggle_3"):
+		enable_sun = !enable_sun
+	if Input.is_action_just_pressed("toggle_4"):
+		sun_angle += 6.2 / 7.333
+		if sun_angle > 6.2:
+			sun_angle -= 6.2
+
+
+	if Input.is_key_pressed(KEY_F5):
 		display_mode="draw"
-	elif Input.is_key_pressed(KEY_F2):
+	elif Input.is_key_pressed(KEY_F6):
 		display_mode="jfa"
-	elif Input.is_key_pressed(KEY_F3):
+	elif Input.is_key_pressed(KEY_F7):
 		display_mode="distance"
 	else:
 		display_mode="default"
@@ -105,7 +124,7 @@ func _process(delta):
 	simple_ui.set_debug_output_text(debug_str)
 
 func setup():
-	var image = Image.create(size.x, size.y, false, Image.FORMAT_RGBAF)
+	var image = Image.create(int(size.x), int(size.y), false, Image.FORMAT_RGBAF)
 	var image_texture = ImageTexture.create_from_image(image)
 	texture = image_texture
 
@@ -123,7 +142,7 @@ func setup():
 	fmt3.format = RenderingDevice.DATA_FORMAT_R32G32B32A32_SFLOAT
 	fmt3.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 	var view3 = RDTextureView.new()
-	draw_texture = rd.texture_create(fmt3, view3)
+	input_texture = rd.texture_create(fmt3, view3)
 	output_texture = rd.texture_create(fmt3, view3)
 	jfa_texture = rd.texture_create(fmt3, view3)
 	jfa_texture_prev = rd.texture_create(fmt3, view3)
@@ -132,16 +151,16 @@ func setup():
 	draw_input_tex_uniform = RDUniform.new()
 	draw_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	draw_input_tex_uniform.binding = 2
-	draw_input_tex_uniform.add_id(draw_texture)
+	draw_input_tex_uniform.add_id(input_texture)
 	draw_output_tex_uniform = RDUniform.new()
 	draw_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	draw_output_tex_uniform.binding = 1
-	draw_output_tex_uniform.add_id(draw_texture)
+	draw_output_tex_uniform.add_id(input_texture)
 
 	raymarch_input_tex_uniform = RDUniform.new()
 	raymarch_input_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	raymarch_input_tex_uniform.binding = 2
-	raymarch_input_tex_uniform.add_id(draw_texture)
+	raymarch_input_tex_uniform.add_id(input_texture)
 	raymarch_output_tex_uniform = RDUniform.new()
 	raymarch_output_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	raymarch_output_tex_uniform.binding = 1
@@ -197,7 +216,7 @@ func simulate(_delta:float):
 	elif display_mode=="distance":
 		send_image(distance_texture)
 	elif display_mode=="draw":
-		send_image(draw_texture)
+		send_image(input_texture)
 	else:
 		send_image(output_texture)
 	
@@ -354,7 +373,7 @@ func jfa_raymarch():
 		show_noise, 
 		show_grain, 
 		enable_sun, 
-		use_temporal_accum, 
+		# use_temporal_accum, 
 		]).to_byte_array())
 	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 

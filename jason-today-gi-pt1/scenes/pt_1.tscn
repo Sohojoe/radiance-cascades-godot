@@ -23,13 +23,11 @@ title_text = "Controls:
 
 Left Mouse Button = Paint
 
-1 - 4 Color Pen
-5 - Wall/Black Pen
+1 - 5 Pen Color
 
-F1 - F3 Debug Displays
-
+F1 - F4 Toggle/Cycle Features
+F5 - F7 Debug Views
 
 ESC - Show/Hide this panel
 
-DEL - Reset
-"
+DEL - Reset"
