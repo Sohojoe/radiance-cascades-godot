@@ -63,6 +63,7 @@ vec4 raymarch(vec2 point, float theta, probe_info info) {
 	for(float i = 0.0, df = 0.0, rd = 0.0; i < info.range; i++) {									// Loop for max length of interval (in event that ray SDF is near 0 for entire length of ray).
 		// df = V2F16(texture2D(in_DistanceField, ray).rg);											// Distance sample of scene converted from 2-byte encoded distance scene texture.
 		df = imageLoad(distance_image, ivec2(ray * in_RenderExtent)).r;
+        df*=.5; // HACK: seams like i need to divide by 2 to get the same result as in the original shader
         rd += df * info.scale;																		// Sum up total ray distance traveled (scale from distance UV to pixel-coordinates).
 		ray += (delta * df * info.scale * texel);													// Move ray along its direction by SDF distance sample.
 		
