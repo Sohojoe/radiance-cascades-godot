@@ -17,14 +17,16 @@ void main(){
     vec2 vUv=fragCoord.xy/input_image_size;
 
     vec2 nearestSeed = imageLoad(input_image, ifragCoord).xy;
-    float distance = clamp(distance(vUv, nearestSeed), 0.0, 1.0);
-
-    // vec2 jumpflood = imageLoad(input_image, ifragCoord).xy;
-	// float dist = distance(in_TexelCoord * in_RenderExtent, jumpflood * in_RenderExtent);
-	// dist = dist / length(in_RenderExtent);
-
-    // Normalize and visualize the distance
+    // float distance = clamp(distance(fragCoord, nearestSeed*input_image_size)/ length(input_image_size), 0.0, 1.0);
+    float distance = distance(fragCoord, nearestSeed*input_image_size) / length(input_image_size);
     vec4 fragColor = vec4(vec3(distance), 1.0);
     imageStore(output_image,ifragCoord,fragColor);
+
+    // vec4 nearestSeed = imageLoad(input_image, ifragCoord);
+    // float squaredDistance = nearestSeed.z;
+    // float distance = sqrt(squaredDistance);
+    // // float distance = clamp(distance, 0.0, 1.0); // Optional clamping if needed
+    // vec4 fragColor = vec4(vec3(distance), 1.0);
+    // imageStore(output_image, ifragCoord, fragColor);
 
 }
