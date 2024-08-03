@@ -23,10 +23,10 @@ title_text = "Controls:
 Left Mouse Button = Paint
 
 1 - 5 Pen Color
-
+Q - Quality
 F1 - F4 Toggle/Cycle Features
-F5 - F7 Debug Views
-
+F5 - F8 Debug Views
+W - Cycle cascade view for debug
 ESC - Show/Hide this panel
 
 DEL - Reset"

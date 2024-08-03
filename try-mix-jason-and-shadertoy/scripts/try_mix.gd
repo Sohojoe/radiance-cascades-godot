@@ -1,5 +1,12 @@
 extends TextureRect
 
+# Define quality enum
+enum QualityEnum { _0_25, _0_5, _1, _2, _4 }
+const QualityValue = [0.25, 0.5, 1, 2, 4 ]
+@export var quality: QualityEnum = 1
+var last_quality = -1
+var debug_cascade_view = 1
+
 @export_range(0,1) var distance_scale_hack:float = .6
 
 @export_range(0, 48, .1) var jfa_ray_count: int = 32
@@ -87,7 +94,6 @@ var radiance_height: float
 
 
 @export var texture_rect: TextureRect
-@export var num_cascades:int = 6
 @export_range(0, 5, .1) var merge_fix: int = 1
 
 func _ready():
@@ -99,96 +105,24 @@ func _ready():
 func _process(delta):
 	if not is_visible_in_tree():
 		return
-	if Input.is_key_pressed(KEY_1):
-		set_pen(0)
-	elif Input.is_key_pressed(KEY_2):
-		set_pen(1)
-	elif Input.is_key_pressed(KEY_3):
-		set_pen(2)
-	elif Input.is_key_pressed(KEY_4):
-		set_pen(3)
-	elif Input.is_key_pressed(KEY_5):
-		set_pen(4)
+	check_cascade_changed()
+
 	simulate(delta)
 	#profile_simulate(delta) # use with profiler in debugger
 	time += delta
 	frame += 1 
+	handle_debug_keys()
+	handle_debug_text()
 
-
-# @export_range(0, 6.2) var sun_angle:float = 4.2
-# @export var show_noise: bool = true
-# @export var show_grain: bool = true
-# @export var enable_sun: bool = true
-
-	if Input.is_action_just_pressed("toggle_1"):
-		show_noise = !show_noise
-	if Input.is_action_just_pressed("toggle_2"):
-		show_grain = !show_grain
-	if Input.is_action_just_pressed("toggle_3"):
-		enable_sun = !enable_sun
-	if Input.is_action_just_pressed("toggle_4"):
-		sun_angle += 6.2 / 7.333
-		if sun_angle > 6.2:
-			sun_angle -= 6.2
-
-
-	if Input.is_key_pressed(KEY_F5):
-		display_mode="draw"
-	elif Input.is_key_pressed(KEY_F6):
-		display_mode="jfa"
-	elif Input.is_key_pressed(KEY_F7):
-		display_mode="distance"
-	elif Input.is_key_pressed(KEY_F8):
-		display_mode="cascade_prev"
-	else:
-		display_mode="default"
-		
-	var debug_str = " Pen: " + str(cur_pen_index + 1)
-	debug_str +=  "\n Display Mode: " + display_mode
-	simple_ui.set_debug_output_text(debug_str)
-
-# GameMaker helper functions
-func logn(base: float, value: float) -> float:
-	return log(value) / log(base)
-func power_ofN(number: float, n: float) -> float:
-	return pow(n, ceil(logn(n, number)))
-func multiple_ofN(number: float, n: float) -> float:
-	if n == 0:
-		return number
-	return ceil(number / n) * n
-# notes:
-# * sets a limit on the render texture size, for 6 cascades it must be multiple of 32
-func set_up_vars():
-	render_linear = .5 # note is 0.5 in the original shader
-	# render_interval = point_distance(0.0, 0.0, render_linear, render_linear) * 0.5;
-	render_interval = Vector2(0, 0).distance_to(Vector2(render_linear, render_linear)) * 0.5;
-	# render_width = 1250;
-	# render_height = 900;
-	num_radiance_cascades = ceil(logn(4, Vector2(0, 0).distance_to(Vector2(size.x, size.y))));
-	radiance_linear = power_ofN(render_linear, 2);
-	radiance_interval = multiple_ofN(render_interval, 2);
-
-	# // FIXES CASCADE RAY/PROBE TRADE-OFF ERROR RATE FOR NON-POW2 RESOLUTIONS: (very important).
-	var error_rate = pow(2.0, num_radiance_cascades - 1);
-	var errorx = ceil(size.x / error_rate);
-	var errory = ceil(size.y / error_rate);
-	var recommended_width = errorx * error_rate;
-	var recommended_height = errory * error_rate;
-	if size.x != recommended_width or size.y != recommended_height:
-		print("Error: size must be multiple of ", error_rate)
-		print("Recommended size: ", recommended_width, " x ", recommended_height)
-		size = Vector2(recommended_width, recommended_height)
-	cascade_size.x = floor(size.x / radiance_linear);
-	cascade_size.y = floor(size.y / radiance_linear);
 
 func setup():
-	set_up_vars()
 	var image = Image.create(int(size.x), int(size.y), false, Image.FORMAT_RGBAF)
 	var image_texture = ImageTexture.create_from_image(image)
 	texture = image_texture
-
 	rd = RenderingServer.create_local_rendering_device()
 
+	set_cascade()
+	
 	var consts_buffer_bytes := PackedInt32Array([0]).to_byte_array()
 	# consts_buffer_bytes.append_array(PackedFloat32Array([h, h2]).to_byte_array())
 	consts_buffer_bytes.resize(ceil(consts_buffer_bytes.size() / 16.0) * 16)
@@ -243,6 +177,50 @@ func setup():
 	jfa_tex_out_uniform.binding = 1
 	jfa_tex_out_uniform.add_id(jfa_texture)
 
+	for key in shader_file_names.keys():
+		var file_name = shader_file_names[key]
+		var shader_file = load(file_name)
+		var shader_spirv: RDShaderSPIRV = shader_file.get_spirv()
+		var shader = rd.shader_create_from_spirv(shader_spirv)
+		shaders[key] = shader
+		pipelines[key] = rd.compute_pipeline_create(shader)
+
+# GameMaker helper functions
+func logn(base: float, value: float) -> float:
+	return log(value) / log(base)
+func power_ofN(number: float, n: float) -> float:
+	return pow(n, ceil(logn(n, number)))
+func multiple_ofN(number: float, n: float) -> float:
+	if n == 0:
+		return number
+	return ceil(number / n) * n
+# notes:
+# * sets a limit on the render texture size, for 6 cascades it must be multiple of 32
+func set_cascade():
+	render_linear = QualityValue[quality] # note is 0.5 in the original shader
+	last_quality = quality
+	
+	# render_interval = point_distance(0.0, 0.0, render_linear, render_linear) * 0.5;
+	render_interval = Vector2(0, 0).distance_to(Vector2(render_linear, render_linear)) * 0.5;
+	# render_width = 1250;
+	# render_height = 900;
+	num_radiance_cascades = ceil(logn(4, Vector2(0, 0).distance_to(Vector2(size.x, size.y))));
+	radiance_linear = power_ofN(render_linear, 2);
+	radiance_interval = multiple_ofN(render_interval, 2);
+
+	# // FIXES CASCADE RAY/PROBE TRADE-OFF ERROR RATE FOR NON-POW2 RESOLUTIONS: (very important).
+	var error_rate = pow(2.0, num_radiance_cascades - 1);
+	var errorx = ceil(size.x / error_rate);
+	var errory = ceil(size.y / error_rate);
+	var recommended_width = errorx * error_rate;
+	var recommended_height = errory * error_rate;
+	if size.x != recommended_width or size.y != recommended_height:
+		print("Error: size must be multiple of ", error_rate)
+		print("Recommended size: ", recommended_width, " x ", recommended_height)
+		size = Vector2(recommended_width, recommended_height)
+	cascade_size.x = floor(size.x / radiance_linear);
+	cascade_size.y = floor(size.y / radiance_linear);
+
 	# create the cascades texture array
 	var fmt2 = RDTextureFormat.new()
 	fmt2.width = cascade_size.x
@@ -262,13 +240,9 @@ func setup():
 	cascade_prev_tex_uniform.binding = 11
 	cascade_prev_tex_uniform.add_id(cascade_prev_texture)
 
-	for key in shader_file_names.keys():
-		var file_name = shader_file_names[key]
-		var shader_file = load(file_name)
-		var shader_spirv: RDShaderSPIRV = shader_file.get_spirv()
-		var shader = rd.shader_create_from_spirv(shader_spirv)
-		shaders[key] = shader
-		pipelines[key] = rd.compute_pipeline_create(shader)
+func check_cascade_changed():
+	if quality != last_quality:
+		set_cascade()
 
 func simulate(_delta:float):	
 	#--- CPU work
@@ -290,8 +264,6 @@ func simulate(_delta:float):
 		texture_to_ouput = distance_texture
 	elif display_mode=="draw":
 		texture_to_ouput = input_texture
-	elif display_mode=="cascade_prev":
-		texture_to_ouput = cascade_prev_texture
 	resample_image(texture_to_ouput)
 
 	# GPU -> CPU
@@ -337,6 +309,63 @@ func profile_resample_image():
 	resample_image(cascade_texture)
 	rd.submit()
 	rd.sync()
+
+
+#--- ui functions
+func handle_debug_keys():
+	if Input.is_key_pressed(KEY_1):
+		set_pen(0)
+	elif Input.is_key_pressed(KEY_2):
+		set_pen(1)
+	elif Input.is_key_pressed(KEY_3):
+		set_pen(2)
+	elif Input.is_key_pressed(KEY_4):
+		set_pen(3)
+	elif Input.is_key_pressed(KEY_5):
+		set_pen(4)
+
+	if Input.is_action_just_pressed("toggle_1"):
+		show_noise = !show_noise
+	if Input.is_action_just_pressed("toggle_2"):
+		show_grain = !show_grain
+	if Input.is_action_just_pressed("toggle_3"):
+		enable_sun = !enable_sun
+	if Input.is_action_just_pressed("toggle_4"):
+		sun_angle += 6.2 / 7.333
+		if sun_angle > 6.2:
+			sun_angle -= 6.2
+	if Input.is_action_just_pressed("cycle_quality"):
+		cycle_quality()
+	if Input.is_action_just_pressed("cycle_debug_cascade_view"):
+		cycle_debug_cascade_view()
+
+	if Input.is_key_pressed(KEY_F5):
+		display_mode="draw"
+	elif Input.is_key_pressed(KEY_F6):
+		display_mode="jfa"
+	elif Input.is_key_pressed(KEY_F7):
+		display_mode="distance"
+	elif Input.is_key_pressed(KEY_F8):
+		display_mode="cascade_prev"
+	else:
+		display_mode="default"
+		
+func handle_debug_text():
+	var debug_str = " Pen: " + str(cur_pen_index + 1)
+	debug_str +=  "\n Display Mode: " + display_mode
+	debug_str +=  "\n Quality: " + str(render_linear)
+	debug_str +=  "\n Debug Cascade View: " + str(debug_cascade_view)
+	simple_ui.set_debug_output_text(debug_str)
+	
+func cycle_quality():
+	quality += 1
+	if quality >= len(QualityEnum):
+		quality = 0
+	notify_property_list_changed()
+func cycle_debug_cascade_view():
+	debug_cascade_view += 1
+	if debug_cascade_view >= num_radiance_cascades:
+		debug_cascade_view = 1
 
 #--- helper functions
 func get_uniform(buffer, binding: int):
@@ -394,7 +423,7 @@ func draw():
 	from = to
 	to = mouse_position
 	drawing = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var clear_screen = Input.is_key_pressed(KEY_DELETE) || Input.is_key_pressed(KEY_BACKSPACE) || frame == 0    
+	var clear_screen = Input.is_key_pressed(KEY_DELETE) || Input.is_key_pressed(KEY_BACKSPACE) || frame == 0	
 
 	var radiusSquared:float = radius * radius;
 	var pc_bytes := PackedVector4Array([color]).to_byte_array()
@@ -539,6 +568,7 @@ func radiance_cascades():
 				radiance_linear,
 				radiance_interval,
 			]).to_byte_array())
+		pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 		var uniform_set = rd.uniform_set_create([
 			consts_buffer_uniform, input_tex_in_uniform, distance_tex_in_b3_uniform,
 			cascade_tex_uniform,
@@ -546,11 +576,12 @@ func radiance_cascades():
 			], 
 			shaders[shader_name], 
 			0)			
-		# pc_bytes.append_array(PackedVector2iArray([cascade_size]).to_byte_array())
-		# pc_bytes.append_array(PackedInt32Array([iFrame,]).to_byte_array())
-		# pc_bytes.append_array(PackedFloat32Array([iTime,]).to_byte_array())
-		pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 		dispatch_cascade(compute_list, shader_name, uniform_set, pc_bytes)
+
+		# debug code to show cascades
+		if display_mode=="cascade_prev" and cascade_index == debug_cascade_view:
+			break		
+		
 	rd.compute_list_end()
 
 func  resample_image(source_text):
