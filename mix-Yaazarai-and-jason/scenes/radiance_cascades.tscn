@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://v6vcmdwxqxyp"]
 
-[ext_resource type="Script" path="res://scripts/try_mix.gd" id="1_kxvhn"]
+[ext_resource type="Script" path="res://scripts/radiance_cascades.gd" id="1_kxvhn"]
 [ext_resource type="PackedScene" uid="uid://dcmmmh2lbg4dw" path="res://components/simple_ui/simple_ui.tscn" id="2_asmfo"]
 
 [node name="pt1" type="TextureRect"]
@@ -24,7 +24,6 @@ Left Mouse Button = Paint
 
 1 - 5 Pen Color
 Q - Quality
-F1 - F4 Toggle/Cycle Features
 F5 - F8 Debug Views
 W - Cycle cascade view for debug
 ESC - Show/Hide this panel

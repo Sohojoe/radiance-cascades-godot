@@ -69,7 +69,6 @@ var radiance_height: float
 
 
 @export var texture_rect: TextureRect
-@export_range(0, 5, .1) var merge_fix: int = 1
 
 # -----------------------------------------------------------------------------------
 # Godot functions
