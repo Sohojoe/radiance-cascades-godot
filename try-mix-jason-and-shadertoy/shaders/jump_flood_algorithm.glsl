@@ -19,49 +19,51 @@ layout(push_constant,std430)uniform Params{
 
 const float FLT_MAX = 3.4028235e38;
 
+const vec2 offsets[9] = vec2[9](
+    vec2(-1.0, -1.0),
+    vec2(-1.0, 0.0),
+    vec2(-1.0, 1.0),
+    vec2(0.0, -1.0),
+    vec2(0.0, 0.0),
+    vec2(0.0, 1.0),
+    vec2(1.0, -1.0),
+    vec2(1.0, 0.0),
+    vec2(1.0, 1.0)
+);
+
+
 void main(){
     vec2 fragCoord=gl_GlobalInvocationID.xy;
     ivec2 ifragCoord=ivec2(fragCoord.xy);
     ivec2 input_image_size=imageSize(input_image).xy;
     vec2 vUv=fragCoord.xy/input_image_size;
-    vec4 fragColor;
 
     if(pc.skip){
-        fragColor=vec4(vUv,0.,1.);
-        imageStore(output_image,ifragCoord,fragColor);
+        imageStore(output_image, ifragCoord, vec4(vUv,0.,1.));
         return;
     }
 
-    vec4 nearestSeed=vec4(-2.);
-    float nearestDist=FLT_MAX;
-    
-    for(float y=-1.;y<=1.;y+=1.){
-        for(float x=-1.;x<=1.;x+=1.){
+    float closest_dist = FLT_MAX;
+    vec4 closest_data = vec4(0.0);
 
-            vec2 sampleXY = fragCoord + vec2(x, y) * pc.uOffset;
-
-            // Check if the sample is within bounds
-            if (sampleXY.x < 0.0 || sampleXY.x >= input_image_size.x || 
-                sampleXY.y < 0.0 || sampleXY.y >= input_image_size.y) {
-                continue;
-            }
-
-            vec4 sampleValue=imageLoad(input_image, ivec2(sampleXY));
-            vec2 sampleSeed=sampleValue.xy;
-
-            if(sampleSeed.x!=0.||sampleSeed.y!=0.){
-                vec2 diff = sampleSeed - vUv;
-                float dist=dot(diff,diff);
-                if(dist<nearestDist){
-                    nearestDist=dist;
-                    nearestSeed=sampleValue;
-                }
-            }
+    for(int i = 0; i < 9; i++) {
+        ivec2 jump = ifragCoord + ivec2(offsets[i] * pc.uOffset);
+        if (any(lessThan(jump, ivec2(0))) || any(greaterThanEqual(jump, input_image_size))) {
+            continue;
+        }     
+        vec4 seed = imageLoad(input_image, jump);
+        vec2 seedpos = seed.xy;
+        if (seedpos == vec2(0.0)) continue;
+        vec2 diff =(seedpos * input_image_size) - fragCoord;
+        float dist=dot(diff,diff);
+        
+        if (dist < closest_dist) {
+            closest_dist = dist;
+            closest_data = seed;
         }
     }
-    fragColor=nearestSeed;
 
-    imageStore(output_image,ifragCoord,fragColor);
+    imageStore(output_image, ifragCoord, closest_data);
 
 }
 
