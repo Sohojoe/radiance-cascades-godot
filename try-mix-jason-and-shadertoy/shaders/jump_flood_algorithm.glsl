@@ -12,9 +12,7 @@ layout(set=0,binding=1,rgba32f)writeonly uniform image2D output_image;
 layout(set=0,binding=2,rgba32f)readonly uniform image2D input_image;
 
 layout(push_constant,std430)uniform Params{
-    vec2 oneOverSize;
     float uOffset;
-    bool skip;
 }pc;
 
 const float FLT_MAX = 3.4028235e38;
@@ -37,11 +35,6 @@ void main(){
     ivec2 ifragCoord=ivec2(fragCoord.xy);
     ivec2 input_image_size=imageSize(input_image).xy;
     vec2 vUv=fragCoord.xy/input_image_size;
-
-    if(pc.skip){
-        imageStore(output_image, ifragCoord, vec4(vUv,0.,1.));
-        return;
-    }
 
     float closest_dist = FLT_MAX;
     vec4 closest_data = vec4(0.0);

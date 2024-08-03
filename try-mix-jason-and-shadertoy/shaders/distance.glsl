@@ -10,11 +10,6 @@ layout(set=0,binding=0,std430)buffer ConstBuffer{
 layout(set=0,binding=1,rgba32f)writeonly uniform image2D output_image;
 layout(set=0,binding=2,rgba32f)readonly uniform image2D input_image;
 
-
-layout(push_constant,std430)uniform Params{
-    float distance_scale_hack;
-}pc;
-
 void main(){
     vec2 fragCoord=gl_GlobalInvocationID.xy;
     ivec2 ifragCoord=ivec2(fragCoord.xy);

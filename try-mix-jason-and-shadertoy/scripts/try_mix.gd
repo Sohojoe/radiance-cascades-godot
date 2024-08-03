@@ -1,37 +1,16 @@
 extends TextureRect
 
-# Define quality enum
-enum QualityEnum { _0_25, _0_5, _1, _2, _4 }
-const QualityValue = [0.25, 0.5, 1, 2, 4 ]
-@export var quality: QualityEnum = 1
-var last_quality = -1
-var debug_cascade_view = 1
-
-@export_range(0,1) var distance_scale_hack:float = .6
-
-@export_range(0, 48, .1) var jfa_ray_count: int = 32
-@export_range(0, 32, .1) var jfa_raymarch_max_steps:int = 32
-@export_range(0, 48, .1) var ray_count: int = 8
-@export_range(0, 6.2) var sun_angle:float = 4.2
-@export var show_noise: bool = true
-@export var show_grain: bool = true
-@export var enable_sun: bool = true
-# @export var use_temporal_accum: bool = false
-
-@export_range(0, 1468, .1) var raymarch_max_steps:int = 256
-@export var accum_radiance: bool = true
-
 
 @export_range(0, 11, .1) var jfa_passes_count: int = 11
 
 var cascade_size: Vector2
 
+# draw vars
 var color = Vector4(1.,1.,0,1)
 var from = Vector2(100,100)
 var to = Vector2(300,200)
 @export_range(1, 15) var radius:float = 5.
 var drawing: bool = true
-
 var pens = [
 	"#fff6d3", 
 	"#f9a875", 
@@ -42,17 +21,15 @@ var pens = [
 @onready var simple_ui: CanvasLayer = $simple_ui
 
 
+# shader vard
 var shader_file_names = {
 	"draw": "res://shaders/draw.glsl",
-	"raymarch": "res://shaders/raymarch.glsl",
 	"jump_flood_algorithm": "res://shaders/jump_flood_algorithm.glsl",
 	"seed": "res://shaders/seed.glsl",
 	"distance": "res://shaders/distance.glsl",
-	"jfa_raymarch": "res://shaders/jfa_raymarch.glsl",
 	"radiance_cascades": "res://shaders/radiance_cascades.glsl",
 	"resample_image": "res://shaders/resample_image.glsl",
 }
-
 var rd: RenderingDevice
 var pipelines = {}
 var shaders = {}
@@ -81,8 +58,6 @@ var cascade_prev_tex_uniform
 
 var frame:int = 0
 var time:float = 0.0
-var cur_pen_index:int = 0
-var display_mode:String 
 
 var render_linear: float
 var render_interval: float
@@ -96,6 +71,10 @@ var radiance_height: float
 @export var texture_rect: TextureRect
 @export_range(0, 5, .1) var merge_fix: int = 1
 
+# -----------------------------------------------------------------------------------
+# Godot functions
+# 
+
 func _ready():
 	frame = 0
 	time = 0.0
@@ -106,7 +85,6 @@ func _process(delta):
 	if not is_visible_in_tree():
 		return
 	check_cascade_changed()
-
 	simulate(delta)
 	#profile_simulate(delta) # use with profiler in debugger
 	time += delta
@@ -115,6 +93,10 @@ func _process(delta):
 	handle_debug_text()
 
 
+# -----------------------------------------------------------------------------------
+# Setup functions
+# 
+
 func setup():
 	var image = Image.create(int(size.x), int(size.y), false, Image.FORMAT_RGBAF)
 	var image_texture = ImageTexture.create_from_image(image)
@@ -122,7 +104,11 @@ func setup():
 	rd = RenderingServer.create_local_rendering_device()
 
 	set_cascade()
-	
+
+	# jfa
+	var max_dimension = max(size.x, size.y)
+	jfa_passes_count = ceil(log(max_dimension) / log(2))
+
 	var consts_buffer_bytes := PackedInt32Array([0]).to_byte_array()
 	# consts_buffer_bytes.append_array(PackedFloat32Array([h, h2]).to_byte_array())
 	consts_buffer_bytes.resize(ceil(consts_buffer_bytes.size() / 16.0) * 16)
@@ -244,6 +230,10 @@ func check_cascade_changed():
 	if quality != last_quality:
 		set_cascade()
 
+# -----------------------------------------------------------------------------------
+# Main simulation
+# 
+
 func simulate(_delta:float):	
 	#--- CPU work
 	# n/a
@@ -271,6 +261,9 @@ func simulate(_delta:float):
 	rd.sync()
 	send_image(output_texture)
 
+# -----------------------------------------------------------------------------------
+# alternative sumulation for profiling each shader
+# 
 func profile_simulate(_delta:float):
 	profile_draw()
 	profile_create_seed()
@@ -310,64 +303,9 @@ func profile_resample_image():
 	rd.submit()
 	rd.sync()
 
-
-#--- ui functions
-func handle_debug_keys():
-	if Input.is_key_pressed(KEY_1):
-		set_pen(0)
-	elif Input.is_key_pressed(KEY_2):
-		set_pen(1)
-	elif Input.is_key_pressed(KEY_3):
-		set_pen(2)
-	elif Input.is_key_pressed(KEY_4):
-		set_pen(3)
-	elif Input.is_key_pressed(KEY_5):
-		set_pen(4)
-
-	if Input.is_action_just_pressed("toggle_1"):
-		show_noise = !show_noise
-	if Input.is_action_just_pressed("toggle_2"):
-		show_grain = !show_grain
-	if Input.is_action_just_pressed("toggle_3"):
-		enable_sun = !enable_sun
-	if Input.is_action_just_pressed("toggle_4"):
-		sun_angle += 6.2 / 7.333
-		if sun_angle > 6.2:
-			sun_angle -= 6.2
-	if Input.is_action_just_pressed("cycle_quality"):
-		cycle_quality()
-	if Input.is_action_just_pressed("cycle_debug_cascade_view"):
-		cycle_debug_cascade_view()
-
-	if Input.is_key_pressed(KEY_F5):
-		display_mode="draw"
-	elif Input.is_key_pressed(KEY_F6):
-		display_mode="jfa"
-	elif Input.is_key_pressed(KEY_F7):
-		display_mode="distance"
-	elif Input.is_key_pressed(KEY_F8):
-		display_mode="cascade_prev"
-	else:
-		display_mode="default"
-		
-func handle_debug_text():
-	var debug_str = " Pen: " + str(cur_pen_index + 1)
-	debug_str +=  "\n Display Mode: " + display_mode
-	debug_str +=  "\n Quality: " + str(render_linear)
-	debug_str +=  "\n Debug Cascade View: " + str(debug_cascade_view)
-	simple_ui.set_debug_output_text(debug_str)
-	
-func cycle_quality():
-	quality += 1
-	if quality >= len(QualityEnum):
-		quality = 0
-	notify_property_list_changed()
-func cycle_debug_cascade_view():
-	debug_cascade_view += 1
-	if debug_cascade_view >= num_radiance_cascades:
-		debug_cascade_view = 1
-
-#--- helper functions
+# -----------------------------------------------------------------------------------
+# Helper functions
+# 
 func get_uniform(buffer, binding: int):
 	var rd_uniform = RDUniform.new()
 	rd_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
@@ -418,6 +356,9 @@ func swap_cascade_image():
 	cascade_prev_tex_uniform.add_id(cascade_prev_texture)
 
 
+# -----------------------------------------------------------------------------------
+# Shader functions
+# 
 func draw():
 	var mouse_position = get_local_mouse_position()
 	from = to
@@ -444,25 +385,6 @@ func draw():
 	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 	rd.compute_list_end()
 
-
-func raymarch():
-	var pc_bytes := PackedVector2Array([size]).to_byte_array()
-	pc_bytes.append_array(PackedInt32Array([ray_count, raymarch_max_steps, show_noise, accum_radiance]).to_byte_array())
-	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
-
-	var shader_name = "raymarch"
-	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
-	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, output_tex_out_uniform, input_tex_in_uniform,
-		], 
-		shaders[shader_name], 
-		0)
-
-	var compute_list = rd.compute_list_begin()
-	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
-	rd.compute_list_end()
-
-
 func create_seed():
 	var shader_name = "seed"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
@@ -478,9 +400,6 @@ func create_seed():
 
 
 func jump_flood_algorithm():
-	var oneOverSize := Vector2.ONE / size
-	var skip:bool = jfa_passes_count == 0
-
 	var shader_name = "jump_flood_algorithm"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set
@@ -493,9 +412,7 @@ func jump_flood_algorithm():
 	for i in range(passes-1, -1, -1):
 		var uOffset:float = pow(2, i)
 
-		var pc_bytes := PackedVector2Array([oneOverSize]).to_byte_array()
-		pc_bytes.append_array(PackedFloat32Array([uOffset]).to_byte_array())
-		pc_bytes.append_array(PackedInt32Array([skip]).to_byte_array())
+		var pc_bytes := PackedFloat32Array([uOffset]).to_byte_array()
 		pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
 		
 		swap_jfa_image()
@@ -510,9 +427,6 @@ func jump_flood_algorithm():
 	rd.compute_list_end()
 	
 func create_distance():
-	var pc_bytes := PackedFloat32Array([distance_scale_hack]).to_byte_array()
-	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
-
 	var shader_name = "distance"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
@@ -522,36 +436,8 @@ func create_distance():
 		0)
 
 	var compute_list = rd.compute_list_begin()
-	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
+	dispatch(compute_list, shader_name, uniform_set)
 	rd.compute_list_end()
-
-func jfa_raymarch():
-	var pc_bytes := PackedVector2Array([size]).to_byte_array()
-	pc_bytes.append_array(PackedFloat32Array([
-		time, 
-		sun_angle]).to_byte_array())
-	pc_bytes.append_array(PackedInt32Array([
-		jfa_ray_count, 
-		jfa_raymarch_max_steps, 
-		show_noise, 
-		show_grain, 
-		enable_sun, 
-		# use_temporal_accum, 
-		]).to_byte_array())
-	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
-
-	var shader_name = "jfa_raymarch"
-	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
-	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, output_tex_out_uniform, input_tex_in_uniform, distance_tex_in_b3_uniform,
-		], 
-		shaders[shader_name], 
-		0)
-
-	var compute_list = rd.compute_list_begin()
-	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
-	rd.compute_list_end()
-
 
 func radiance_cascades():
 	var compute_list = rd.compute_list_begin()
@@ -598,3 +484,74 @@ func  resample_image(source_text):
 	var compute_list = rd.compute_list_begin()
 	dispatch(compute_list, shader_name, uniform_set)
 	rd.compute_list_end()
+
+
+# -----------------------------------------------------------------------------------
+# UI and debug vars and code
+# 
+
+# debug / ui vars
+enum QualityEnum { _0_25, _0_5, _1, _2, _4 }
+const QualityValue = [0.25, 0.5, 1, 2, 4 ]
+@export var quality: QualityEnum = QualityEnum._0_5
+var last_quality = -1
+var debug_cascade_view = 1
+var cur_pen_index:int = 0
+var display_mode:String 
+
+
+#--- ui functions
+func handle_debug_keys():
+	if Input.is_key_pressed(KEY_1):
+		set_pen(0)
+	elif Input.is_key_pressed(KEY_2):
+		set_pen(1)
+	elif Input.is_key_pressed(KEY_3):
+		set_pen(2)
+	elif Input.is_key_pressed(KEY_4):
+		set_pen(3)
+	elif Input.is_key_pressed(KEY_5):
+		set_pen(4)
+
+	#if Input.is_action_just_pressed("toggle_1"):
+		#show_noise = !show_noise
+	#if Input.is_action_just_pressed("toggle_2"):
+		#show_grain = !show_grain
+	#if Input.is_action_just_pressed("toggle_3"):
+		#enable_sun = !enable_sun
+	#if Input.is_action_just_pressed("toggle_4"):
+		#sun_angle += 6.2 / 7.333
+		#if sun_angle > 6.2:
+			#sun_angle -= 6.2
+	if Input.is_action_just_pressed("cycle_quality"):
+		cycle_quality()
+	if Input.is_action_just_pressed("cycle_debug_cascade_view"):
+		cycle_debug_cascade_view()
+
+	if Input.is_key_pressed(KEY_F5):
+		display_mode="draw"
+	elif Input.is_key_pressed(KEY_F6):
+		display_mode="jfa"
+	elif Input.is_key_pressed(KEY_F7):
+		display_mode="distance"
+	elif Input.is_key_pressed(KEY_F8):
+		display_mode="cascade_prev"
+	else:
+		display_mode="default"
+		
+func handle_debug_text():
+	var debug_str = " Pen: " + str(cur_pen_index + 1)
+	debug_str +=  "\n Display Mode: " + display_mode
+	debug_str +=  "\n Quality: " + str(render_linear)
+	debug_str +=  "\n Debug Cascade View: " + str(debug_cascade_view)
+	simple_ui.set_debug_output_text(debug_str)
+	
+func cycle_quality():
+	quality += 1
+	if quality >= len(QualityEnum):
+		quality = 0
+	notify_property_list_changed()
+func cycle_debug_cascade_view():
+	debug_cascade_view += 1
+	if debug_cascade_view >= num_radiance_cascades:
+		debug_cascade_view = 1
