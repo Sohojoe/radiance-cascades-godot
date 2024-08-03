@@ -2,6 +2,12 @@
 basic port of Radiance Cascades shadertoy implementation
 
 
+1. mix-Yaazarai-and-jason - Godot 4.3 implementation of [Radiance Cascades: A Novel Approach to Calculating Global Illumination](https://drive.google.com/file/d/1L6v1_7HY2X-LV3Ofb6oyTIxgEaP4LOI6/view) by Alexander Sannikov
+    * Credit: uses a mix of Yaazrari's [GameMaker implementation/blog](https://mini.gmshaders.com/p/radiance-cascades2?utm_campaign=post&utm_medium=web) and jason-today's [JavaScript implementation/blog](https://jason.today/gi)
+    * i have other versions below - but this is the most performant and cleanest
+    * note: is implemented in compute shaders so does not include hardware sampling optimization
+    * ![radiance-cascades](images/happy-try-more.jpg)
+
 
 1. shadertoy-port-suslik - Godot 4.3 port of [RC Experimental Testbed](https://www.shadertoy.com/view/4ctXD8) Credit tree:
 
