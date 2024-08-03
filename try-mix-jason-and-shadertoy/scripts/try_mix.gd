@@ -17,7 +17,7 @@ extends TextureRect
 
 @export_range(0, 11, .1) var jfa_passes_count: int = 11
 
-@export var cascade_size = Vector2(1024,1024)
+var cascade_size: Vector2
 
 var color = Vector4(1.,1.,0,1)
 var from = Vector2(100,100)
@@ -42,8 +42,8 @@ var shader_file_names = {
 	"seed": "res://shaders/seed.glsl",
 	"distance": "res://shaders/distance.glsl",
 	"jfa_raymarch": "res://shaders/jfa_raymarch.glsl",
-	"cube_a": "res://shaders/radiance_cascades_cube_a.glsl",
-	"image": "res://shaders/radiance_cascades_image.glsl",
+	"radiance_cascades": "res://shaders/radiance_cascades.glsl",
+	"resample_image": "res://shaders/resample_image.glsl",
 }
 
 var rd: RenderingDevice
@@ -67,23 +67,24 @@ var distance_tex_in_b3_uniform
 var jfa_prev_tex_input_uniform
 var jfa_tex_out_uniform
 
-var cascades_texture_0
-var cascades_tex_uniform_0
-var cascades_texture_1
-var cascades_tex_uniform_1
-var cascades_texture_2
-var cascades_tex_uniform_2
-var cascades_texture_3
-var cascades_tex_uniform_3
-var cascades_texture_4
-var cascades_tex_uniform_4
-var cascades_texture_5
-var cascades_tex_uniform_5
+var cascade_texture
+var cascade_tex_uniform
+var cascade_prev_texture
+var cascade_prev_tex_uniform
 
 var frame:int = 0
 var time:float = 0.0
 var cur_pen_index:int = 0
 var display_mode:String 
+
+var render_linear: float
+var render_interval: float
+var num_radiance_cascades: int
+var radiance_linear: float
+var radiance_interval: float
+var radiance_width: float
+var radiance_height: float
+
 
 @export var texture_rect: TextureRect
 @export var num_cascades:int = 6
@@ -135,6 +136,8 @@ func _process(delta):
 		display_mode="jfa"
 	elif Input.is_key_pressed(KEY_F7):
 		display_mode="distance"
+	elif Input.is_key_pressed(KEY_F8):
+		display_mode="cascade_prev"
 	else:
 		display_mode="default"
 		
@@ -142,7 +145,42 @@ func _process(delta):
 	debug_str +=  "\n Display Mode: " + display_mode
 	simple_ui.set_debug_output_text(debug_str)
 
+# GameMaker helper functions
+func logn(base: float, value: float) -> float:
+	return log(value) / log(base)
+func power_ofN(number: float, n: float) -> float:
+	return pow(n, ceil(logn(n, number)))
+func multiple_ofN(number: float, n: float) -> float:
+	if n == 0:
+		return number
+	return ceil(number / n) * n
+# notes:
+# * sets a limit on the render texture size, for 6 cascades it must be multiple of 32
+func set_up_vars():
+	render_linear = 1; # note is 0.5 in the original shader
+	# render_interval = point_distance(0.0, 0.0, render_linear, render_linear) * 0.5;
+	render_interval = Vector2(0, 0).distance_to(Vector2(render_linear, render_linear)) * 0.5;
+	# render_width = 1250;
+	# render_height = 900;
+	num_radiance_cascades = ceil(logn(4, Vector2(0, 0).distance_to(Vector2(size.x, size.y))));
+	radiance_linear = power_ofN(render_linear, 2);
+	radiance_interval = multiple_ofN(render_interval, 2);
+
+	# // FIXES CASCADE RAY/PROBE TRADE-OFF ERROR RATE FOR NON-POW2 RESOLUTIONS: (very important).
+	var error_rate = pow(2.0, num_radiance_cascades - 1);
+	var errorx = ceil(size.x / error_rate);
+	var errory = ceil(size.y / error_rate);
+	var recommended_width = errorx * error_rate;
+	var recommended_height = errory * error_rate;
+	if size.x != recommended_width or size.y != recommended_height:
+		print("Error: size must be multiple of ", error_rate)
+		print("Recommended size: ", recommended_width, " x ", recommended_height)
+		size = Vector2(recommended_width, recommended_height)
+	cascade_size.x = floor(size.x / radiance_linear);
+	cascade_size.y = floor(size.y / radiance_linear);
+
 func setup():
+	set_up_vars()
 	var image = Image.create(int(size.x), int(size.y), false, Image.FORMAT_RGBAF)
 	var image_texture = ImageTexture.create_from_image(image)
 	texture = image_texture
@@ -208,38 +246,20 @@ func setup():
 	fmt2.width = cascade_size.x
 	fmt2.height = cascade_size.y
 	fmt2.format = RenderingDevice.DATA_FORMAT_R32G32B32A32_SFLOAT
-	fmt2.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT
+	#fmt2.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT
+	fmt2.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_TO_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 	var view := RDTextureView.new()
-	cascades_texture_0 = rd.texture_create(fmt2, view)
-	cascades_texture_1 = rd.texture_create(fmt2, view)
-	cascades_texture_2 = rd.texture_create(fmt2, view)
-	cascades_texture_3 = rd.texture_create(fmt2, view)
-	cascades_texture_4 = rd.texture_create(fmt2, view)
-	cascades_texture_5 = rd.texture_create(fmt2, view)
-	cascades_tex_uniform_0 = RDUniform.new()
-	cascades_tex_uniform_0.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	cascades_tex_uniform_0.binding = 10
-	cascades_tex_uniform_0.add_id(cascades_texture_0)
-	cascades_tex_uniform_1 = RDUniform.new()
-	cascades_tex_uniform_1.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	cascades_tex_uniform_1.binding = 11
-	cascades_tex_uniform_1.add_id(cascades_texture_1)
-	cascades_tex_uniform_2 = RDUniform.new()
-	cascades_tex_uniform_2.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	cascades_tex_uniform_2.binding = 12
-	cascades_tex_uniform_2.add_id(cascades_texture_2)
-	cascades_tex_uniform_3 = RDUniform.new()
-	cascades_tex_uniform_3.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	cascades_tex_uniform_3.binding = 13
-	cascades_tex_uniform_3.add_id(cascades_texture_3)
-	cascades_tex_uniform_4 = RDUniform.new()
-	cascades_tex_uniform_4.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	cascades_tex_uniform_4.binding = 14
-	cascades_tex_uniform_4.add_id(cascades_texture_4)
-	cascades_tex_uniform_5 = RDUniform.new()
-	cascades_tex_uniform_5.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	cascades_tex_uniform_5.binding = 15
-	cascades_tex_uniform_5.add_id(cascades_texture_5)	
+	cascade_texture = rd.texture_create(fmt2, view)
+	cascade_prev_texture = rd.texture_create(fmt2, view)
+
+	cascade_tex_uniform = RDUniform.new()
+	cascade_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	cascade_tex_uniform.binding = 10
+	cascade_tex_uniform.add_id(cascade_texture)
+	cascade_prev_tex_uniform = RDUniform.new()
+	cascade_prev_tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	cascade_prev_tex_uniform.binding = 11
+	cascade_prev_tex_uniform.add_id(cascade_prev_texture)
 
 	for key in shader_file_names.keys():
 		var file_name = shader_file_names[key]
@@ -263,20 +283,22 @@ func simulate(_delta:float):
 	jump_flood_algorithm()
 	create_distance()
 	# jfa_raymarch()
-	cube_a()
-	image_shader()
+	radiance_cascades()
+	if display_mode=="jfa":
+		resample_image(jfa_texture)
+	elif display_mode=="distance":
+		resample_image(distance_texture)
+	elif display_mode=="draw":
+		resample_image(input_texture)
+	elif display_mode=="cascade_prev":
+		resample_image(cascade_prev_texture)
+	else:
+		resample_image(cascade_texture)
 
 	# GPU -> CPU
 	rd.submit()
 	rd.sync()
-	if display_mode=="jfa":
-		send_image(jfa_texture)
-	elif display_mode=="distance":
-		send_image(distance_texture)
-	elif display_mode=="draw":
-		send_image(input_texture)
-	else:
-		send_image(output_texture)
+	send_image(output_texture)
 	
 	frame += 1 
 
@@ -314,6 +336,14 @@ func swap_jfa_image():
 	jfa_prev_tex_input_uniform.add_id(jfa_texture_prev)
 	jfa_tex_out_uniform.add_id(jfa_texture)
 
+func swap_cascade_image():
+	var tmp = cascade_texture
+	cascade_texture = cascade_prev_texture
+	cascade_prev_texture = tmp
+	cascade_tex_uniform.clear_ids()
+	cascade_prev_tex_uniform.clear_ids()
+	cascade_tex_uniform.add_id(cascade_texture)
+	cascade_prev_tex_uniform.add_id(cascade_prev_texture)
 
 
 func draw():
@@ -450,36 +480,30 @@ func jfa_raymarch():
 	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 	rd.compute_list_end()
 
-func cube_a():
+
+func radiance_cascades():
 
 	var compute_list = rd.compute_list_begin()
 
-	var shader_name = "cube_a"
+	var shader_name = "radiance_cascades"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
-	var uniform_set = rd.uniform_set_create([
-		consts_buffer_uniform, input_tex_in_uniform, distance_tex_in_b3_uniform,
-		cascades_tex_uniform_0,
-		cascades_tex_uniform_1,
-		cascades_tex_uniform_2,
-		cascades_tex_uniform_3,
-		cascades_tex_uniform_4,
-		cascades_tex_uniform_5,
-		], 
-		shaders[shader_name], 
-		0)
 
-	for cascade_index in range(num_cascades-1, -1, -1):
-				# int cascade_index; // Current cascade level
-				# int num_cascades; // Total number of cascades
-				# int cascade_size_x; // Size of each cascade
-				# int cascade_size_y; // Size of each cascade
-		var pc_bytes := PackedInt32Array([
+	for cascade_index in range(num_radiance_cascades-1, -1, -1):
+		swap_cascade_image()
+		var pc_bytes := PackedVector2Array([size, cascade_size]).to_byte_array()
+		pc_bytes.append_array(PackedFloat32Array([
+				num_radiance_cascades,
 				cascade_index,
-				num_cascades,
-				cascade_size.x,
-				cascade_size.y,
-				merge_fix,
-			]).to_byte_array()	
+				radiance_linear,
+				radiance_interval,
+			]).to_byte_array())
+		var uniform_set = rd.uniform_set_create([
+			consts_buffer_uniform, input_tex_in_uniform, distance_tex_in_b3_uniform,
+			cascade_tex_uniform,
+			cascade_prev_tex_uniform,
+			], 
+			shaders[shader_name], 
+			0)			
 		# pc_bytes.append_array(PackedVector2iArray([cascade_size]).to_byte_array())
 		# pc_bytes.append_array(PackedInt32Array([iFrame,]).to_byte_array())
 		# pc_bytes.append_array(PackedFloat32Array([iTime,]).to_byte_array())
@@ -487,32 +511,17 @@ func cube_a():
 		dispatch(compute_list, shader_name, uniform_set, pc_bytes)
 	rd.compute_list_end()
 
-func  image_shader():
-	var pc_bytes := PackedInt32Array([
-			num_cascades,
-			cascade_size.x,
-			cascade_size.y,
-		]).to_byte_array()	
-	# pc_bytes.append_array(PackedVector2iArray([cascade_size]).to_byte_array())
-	# pc_bytes.append_array(PackedInt32Array([iFrame,]).to_byte_array())
-	# pc_bytes.append_array(PackedFloat32Array([iTime,]).to_byte_array())
-	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
+func  resample_image(source_text):
+	var shader_name = "resample_image"
+	var source_uniform  = RDUniform.new()
+	source_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	source_uniform.binding = 2
+	source_uniform.add_id(source_text)
 
-	var shader_name = "image"
-	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
-	var uniform_set = rd.uniform_set_create([
-		#consts_buffer_uniform, emissivity_tex_uniform, output_tex_uniform,
-		consts_buffer_uniform, output_tex_out_uniform, input_tex_in_uniform,
-		cascades_tex_uniform_0,
-		cascades_tex_uniform_1,
-		cascades_tex_uniform_2,
-		cascades_tex_uniform_3,
-		cascades_tex_uniform_4,
-		cascades_tex_uniform_5,
-		], 
+	var uniform_set = rd.uniform_set_create([output_tex_out_uniform, source_uniform], 
 		shaders[shader_name], 
 		0)
 
 	var compute_list = rd.compute_list_begin()
-	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
+	dispatch(compute_list, shader_name, uniform_set)
 	rd.compute_list_end()

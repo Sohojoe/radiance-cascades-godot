@@ -16,12 +16,12 @@ void main(){
     ivec2 input_image_size=imageSize(input_image).xy;
     vec2 vUv=fragCoord.xy/input_image_size;
 
-
-    // float alpha = texture(surfaceTexture, vUv).a;
-    float alpha = imageLoad(input_image, ifragCoord).a;
-
     vec2 nearestSeed = imageLoad(input_image, ifragCoord).xy;
     float distance = clamp(distance(vUv, nearestSeed), 0.0, 1.0);
+
+    // vec2 jumpflood = imageLoad(input_image, ifragCoord).xy;
+	// float dist = distance(in_TexelCoord * in_RenderExtent, jumpflood * in_RenderExtent);
+	// dist = dist / length(in_RenderExtent);
 
     // Normalize and visualize the distance
     vec4 fragColor = vec4(vec3(distance), 1.0);
