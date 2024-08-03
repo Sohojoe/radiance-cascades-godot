@@ -99,8 +99,6 @@ func _ready():
 func _process(delta):
 	if not is_visible_in_tree():
 		return
-	simulate(delta)
-	time += delta
 	if Input.is_key_pressed(KEY_1):
 		set_pen(0)
 	elif Input.is_key_pressed(KEY_2):
@@ -111,6 +109,10 @@ func _process(delta):
 		set_pen(3)
 	elif Input.is_key_pressed(KEY_5):
 		set_pen(4)
+	simulate(delta)
+	#profile_simulate(delta) # use with profiler in debugger
+	time += delta
+	frame += 1 
 
 
 # @export_range(0, 6.2) var sun_angle:float = 4.2
@@ -157,7 +159,7 @@ func multiple_ofN(number: float, n: float) -> float:
 # notes:
 # * sets a limit on the render texture size, for 6 cascades it must be multiple of 32
 func set_up_vars():
-	render_linear = .5; # note is 0.5 in the original shader
+	render_linear = .5 # note is 0.5 in the original shader
 	# render_interval = point_distance(0.0, 0.0, render_linear, render_linear) * 0.5;
 	render_interval = Vector2(0, 0).distance_to(Vector2(render_linear, render_linear)) * 0.5;
 	# render_width = 1250;
@@ -268,7 +270,7 @@ func setup():
 		shaders[key] = shader
 		pipelines[key] = rd.compute_pipeline_create(shader)
 
-func simulate(_delta:float):
+func simulate(_delta:float):	
 	#--- CPU work
 	# n/a
 
@@ -277,29 +279,64 @@ func simulate(_delta:float):
 
 	#--- GPU work
 	draw()
-	# raymarch() # non jfa version
 	create_seed()
 	jump_flood_algorithm()
 	create_distance()
-	# jfa_raymarch()
 	radiance_cascades()
+	var texture_to_ouput = cascade_texture
 	if display_mode=="jfa":
-		resample_image(jfa_texture)
+		texture_to_ouput = jfa_texture
 	elif display_mode=="distance":
-		resample_image(distance_texture)
+		texture_to_ouput = distance_texture
 	elif display_mode=="draw":
-		resample_image(input_texture)
+		texture_to_ouput = input_texture
 	elif display_mode=="cascade_prev":
-		resample_image(cascade_prev_texture)
-	else:
-		resample_image(cascade_texture)
+		texture_to_ouput = cascade_prev_texture
+	resample_image(texture_to_ouput)
 
 	# GPU -> CPU
 	rd.submit()
 	rd.sync()
 	send_image(output_texture)
-	
-	frame += 1 
+
+func profile_simulate(_delta:float):
+	profile_draw()
+	profile_create_seed()
+	profile_jump_flood_algorithm()
+	profile_create_distance()
+	profile_radiance_cascades()
+	profile_resample_image()
+	send_image(output_texture)
+
+func profile_draw():
+	draw()
+	rd.submit()
+	rd.sync()
+
+func profile_create_seed():
+	create_seed()
+	rd.submit()
+	rd.sync()
+
+func profile_jump_flood_algorithm():
+	jump_flood_algorithm()
+	rd.submit()
+	rd.sync()
+
+func profile_create_distance():
+	create_distance()
+	rd.submit()
+	rd.sync()
+
+func profile_radiance_cascades():
+	radiance_cascades()
+	rd.submit()
+	rd.sync()
+
+func profile_resample_image():
+	resample_image(cascade_texture)
+	rd.submit()
+	rd.sync()
 
 #--- helper functions
 func get_uniform(buffer, binding: int):

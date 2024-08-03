@@ -36,8 +36,6 @@ float sdfLineSquared(vec2 p,vec2 from,vec2 to){
 void main(){
     vec2 fragCoord=gl_GlobalInvocationID.xy;
     ivec2 ifragCoord=ivec2(fragCoord.xy);
-    ivec2 screen_size=imageSize(output_image).xy;
-    vUv=fragCoord.xy/pc.resolution;
 
     if (pc.clear_screen != 0) {
         // imageStore(output_image, ifragCoord, vec4(0.0, 0., 0., 1.));
@@ -49,6 +47,8 @@ void main(){
     
     // If we aren't actively drawing (or on mobile) no-op!
     if(pc.drawing != 0){
+        ivec2 screen_size=imageSize(output_image).xy;
+        vUv=fragCoord.xy/pc.resolution;
         if(sdfLineSquared(fragCoord,pc.from,pc.to)<=pc.radiusSquared){
             fragColor=vec4(pc.color.rgb,1.);
         }
