@@ -385,7 +385,7 @@ float intersect(vec2 ro, vec2 rd, float tMax) {
     // the SDF drawing from Buffer B
     // screenRes = vec2(textureSize(iChannel1, 0));
     vec2 screenRes = vec2(imageSize(input_image)).xy;
-    screenRes.y = screenRes.x;  // HACK: wants a square viewport
+    // screenRes.y = screenRes.x;  // HACK: wants a square viewport
     float tOffset = 0.0;
     // First clip the ray to the screen rectangle
     vec2 tAABB = intersectAABB(ro, rd, vec2(0.0001), screenRes - 0.0001);
@@ -410,7 +410,7 @@ float intersect(vec2 ro, vec2 rd, float tMax) {
         // float d = sdDrawing(iChannel1, ro + rd * t);
         ivec2 draw_pos = ivec2(ro + rd * t);
         float d = imageLoad(distance_image, draw_pos).r;
-
+        // d /= screenRes.length();
         t += (d);
         if ((d) < 0.01)
             return t;

@@ -1,7 +1,5 @@
 extends TextureRect
 
-@export_range(0,1) var distance_scale_hack:float = .6
-
 @export_range(0, 48, .1) var jfa_ray_count: int = 32
 @export_range(0, 32, .1) var jfa_raymarch_max_steps:int = 32
 @export_range(0, 48, .1) var ray_count: int = 8
@@ -408,9 +406,6 @@ func jump_flood_algorithm():
 	rd.compute_list_end()
 	
 func create_distance():
-	var pc_bytes := PackedFloat32Array([distance_scale_hack]).to_byte_array()
-	pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
-
 	var shader_name = "distance"
 	var consts_buffer_uniform = get_uniform(consts_buffer, 0)
 	var uniform_set = rd.uniform_set_create([
@@ -420,7 +415,7 @@ func create_distance():
 		0)
 
 	var compute_list = rd.compute_list_begin()
-	dispatch(compute_list, shader_name, uniform_set, pc_bytes)
+	dispatch(compute_list, shader_name, uniform_set)
 	rd.compute_list_end()
 
 func jfa_raymarch():
