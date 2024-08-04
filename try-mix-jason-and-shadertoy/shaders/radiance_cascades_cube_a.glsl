@@ -518,7 +518,6 @@ vec4 CastMergedInterval(vec2 screen_pos, vec2 dir, vec2 interval_length, int pre
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize prev_cascade_size = GetCascadeSize(prev_cascade_index, c0_size);
 
@@ -557,7 +556,6 @@ vec4 InterpProbeDir(ivec2 probe_index, int cascade_index, float dir_indexf)
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize cascade_size = GetCascadeSize(cascade_index, c0_size);
     
@@ -586,7 +584,6 @@ vec4 CastMergedIntervalParallaxFix(vec2 screen_pos, vec2 dir, vec2 interval_leng
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize prev_cascade_size = GetCascadeSize(prev_cascade_index, c0_size);
     
@@ -622,7 +619,6 @@ vec4 CastMergedIntervalBilinearFix(vec2 screen_pos, vec2 dir, vec2 interval_leng
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize prev_cascade_size = GetCascadeSize(prev_cascade_index, c0_size);
     
@@ -663,7 +659,6 @@ vec4 CastMergedIntervalMidpointBilinearFix(vec2 screen_pos, vec2 dir, vec2 inter
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize prev_cascade_size = GetCascadeSize(prev_cascade_index, c0_size);
     vec2 probe_screen_size = GetProbeScreenSize(prev_cascade_index, c0_size);
@@ -715,7 +710,6 @@ vec4 CastMergedIntervalMaskFix(vec2 screen_pos, vec2 dir, vec2 interval_length, 
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize prev_cascade_size = GetCascadeSize(prev_cascade_index, c0_size);
     vec2 probe_screen_size = GetProbeScreenSize(prev_cascade_index, c0_size);
@@ -773,7 +767,6 @@ vec4 CastInterpProbeDir(ivec2 probe_index, int cascade_index, vec2 interval_leng
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize cascade_size = GetCascadeSize(cascade_index, c0_size);
     
@@ -802,7 +795,6 @@ vec4 CastMergedIntervalInnerParallaxFix(ivec2 probe_index, vec2 dir, vec2 interv
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 face_size = imageSize(cascades_image_0).xy;
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     CascadeSize prev_cascade_size = GetCascadeSize(prev_cascade_index, c0_size);
     int cascade_index = prev_cascade_index - 1;
@@ -874,7 +866,6 @@ void main() {
     int pixel_index = face_pixel.x + face_pixel.y * face_size.x + face_index * (face_size.x * face_size.y);
     // ivec2 viewport_size = textureSize(iChannel1, 0);
     ivec2 viewport_size = imageSize(input_image).xy;
-    viewport_size.y = viewport_size.x;  // HACK: wants a square viewport
     CascadeSize c0_size = GetC0Size(viewport_size);
     ProbeLocation probe_location = PixelIndexToProbeLocation(pixel_index, c0_size);
     

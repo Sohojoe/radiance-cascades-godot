@@ -293,6 +293,13 @@ func dispatch(compute_list, shader_name, uniform_set, pc_bytes=null):
 				rd.compute_list_set_push_constant(compute_list, pc_bytes, pc_bytes.size())
 	rd.compute_list_dispatch(compute_list, int(ceil(size.x / 16.0)), int(ceil(size.y / 16.0)), 1)
 
+func dispatch_cascade(compute_list, shader_name, uniform_set, pc_bytes=null):
+	rd.compute_list_bind_compute_pipeline(compute_list, pipelines[shader_name])
+	rd.compute_list_bind_uniform_set(compute_list, uniform_set, 0)
+	if pc_bytes:
+				rd.compute_list_set_push_constant(compute_list, pc_bytes, pc_bytes.size())
+	rd.compute_list_dispatch(compute_list, int(ceil(cascade_size.x / 16.0)), int(ceil(cascade_size.y / 16.0)), 1)
+
 func send_image(img_to_show):
 	var byte_data : PackedByteArray = rd.texture_get_data(img_to_show, 0)
 	var image_data := Image.create_from_data(int(size.x), int(size.y), false, Image.FORMAT_RGBAF, byte_data)
@@ -479,7 +486,7 @@ func cube_a():
 		# pc_bytes.append_array(PackedInt32Array([iFrame,]).to_byte_array())
 		# pc_bytes.append_array(PackedFloat32Array([iTime,]).to_byte_array())
 		pc_bytes.resize(ceil(pc_bytes.size() / 16.0) * 16)
-		dispatch(compute_list, shader_name, uniform_set, pc_bytes)
+		dispatch_cascade(compute_list, shader_name, uniform_set, pc_bytes)
 	rd.compute_list_end()
 
 func  image_shader():
