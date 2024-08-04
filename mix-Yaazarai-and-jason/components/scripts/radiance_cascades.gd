@@ -23,13 +23,14 @@ var pens = [
 
 # shader vard
 var shader_file_names = {
-	"draw": "res://shaders/draw.glsl",
-	"jump_flood_algorithm": "res://shaders/jump_flood_algorithm.glsl",
-	"seed": "res://shaders/seed.glsl",
-	"distance": "res://shaders/distance.glsl",
-	"radiance_cascades": "res://shaders/radiance_cascades.glsl",
-	"resample_image": "res://shaders/resample_image.glsl",
+	"draw": "res://components/radiance_cascades/shaders/draw.glsl",
+	"jump_flood_algorithm": "res://components/radiance_cascades/shaders/jump_flood_algorithm.glsl",
+	"seed": "res://components/radiance_cascades/shaders/seed.glsl",
+	"distance": "res://components/radiance_cascades/shaders/distance.glsl",
+	"radiance_cascades": "res://components/radiance_cascades/shaders/radiance_cascades.glsl",
+	"resample_image": "res://components/radiance_cascades/shaders/resample_image.glsl",
 }
+
 var rd: RenderingDevice
 var pipelines = {}
 var shaders = {}
